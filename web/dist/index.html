@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClipBridge Console</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <div class="background-glow"></div>
+    <main class="app-shell">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">Phase 7 Self-Hosted Runtime</p>
+          <h1>ClipBridge Console</h1>
+          <p class="hero-copy">
+            Use the browser as a lightweight clipboard client, organize history with favorites
+            and categories, and keep long-running storage under control from the same binary.
+          </p>
+        </div>
+        <div class="token-panel">
+          <label for="token-input">API Token</label>
+          <div class="token-row">
+            <input id="token-input" type="password" placeholder="Paste admin or device token" />
+            <button id="save-token-button" type="button">Save</button>
+          </div>
+          <div class="token-actions">
+            <button id="clear-token-button" type="button" class="secondary">Clear</button>
+            <span id="token-status" class="muted">No token saved yet.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid-layout">
+        <article class="panel quick-panel">
+          <div class="panel-head">
+            <h2>Quick Clipboard</h2>
+            <div class="panel-actions">
+              <button id="upload-quick-button" type="button">Upload To Server</button>
+              <button id="copy-latest-button" type="button" class="secondary">Copy Server Latest</button>
+              <button id="refresh-latest-button" type="button" class="secondary">Refresh Latest</button>
+            </div>
+          </div>
+          <label for="quick-clipboard-input">Browser Text</label>
+          <textarea
+            id="quick-clipboard-input"
+            rows="5"
+            placeholder="Type or paste text here, then upload it into the ClipBridge stack."
+          ></textarea>
+          <div class="quick-latest">
+            <span class="mini-label">Latest From Server</span>
+            <p id="latest-empty" class="muted">No clipboard item loaded yet.</p>
+            <div id="latest-card" class="clipboard-card hidden">
+              <div class="clipboard-meta">
+                <span id="latest-id"></span>
+                <span id="latest-created"></span>
+              </div>
+              <div class="clipboard-tags">
+                <span id="latest-type" class="tag">text</span>
+                <span id="latest-category" class="tag tag-accent">-</span>
+                <span id="latest-favorite" class="tag tag-favorite">Not Favorite</span>
+              </div>
+              <pre id="latest-text"></pre>
+              <div class="muted latest-source">
+                From: <span id="latest-source-name">-</span>
+              </div>
+              <div class="panel-actions">
+                <button id="toggle-latest-favorite-button" type="button" class="secondary">Favorite</button>
+                <button id="delete-latest-button" type="button" class="danger">Delete</button>
+              </div>
+              <div class="category-row">
+                <label for="latest-category-select">Category</label>
+                <select id="latest-category-select"></select>
+                <button id="save-latest-category-button" type="button" class="secondary">Update Category</button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel status-panel">
+          <div class="panel-head">
+            <h2>Service Status</h2>
+            <button id="refresh-health-button" type="button" class="secondary">Refresh</button>
+          </div>
+          <div id="health-state" class="status-chip">Checking...</div>
+          <dl class="meta-grid">
+            <div>
+              <dt>Version</dt>
+              <dd id="health-version">-</dd>
+            </div>
+            <div>
+              <dt>Server</dt>
+              <dd id="server-origin">-</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="panel pairing-panel">
+          <div class="panel-head">
+            <h2>Pair Devices</h2>
+            <button id="generate-pairing-button" type="button">Generate Code</button>
+          </div>
+          <p class="muted">
+            Use your admin token here. New pairing codes last 5 minutes and work once.
+          </p>
+          <div id="pairing-output" class="pairing-output hidden">
+            <div>
+              <span class="mini-label">Pairing Code</span>
+              <strong id="pairing-code-value">-</strong>
+            </div>
+            <div>
+              <span class="mini-label">Expires</span>
+              <strong id="pairing-code-expiry">-</strong>
+            </div>
+            <div>
+              <span class="mini-label">Pairing URI</span>
+              <code id="pairing-code-uri">-</code>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel cleanup-status-panel">
+          <div class="panel-head">
+            <h2>Retention Status</h2>
+            <div class="panel-actions">
+              <button id="refresh-cleanup-button" type="button" class="secondary">Refresh</button>
+              <button id="run-cleanup-button" type="button">Run Cleanup Now</button>
+            </div>
+          </div>
+          <dl class="meta-grid">
+            <div>
+              <dt>History Items</dt>
+              <dd id="storage-history-count">-</dd>
+            </div>
+            <div>
+              <dt>Favorites</dt>
+              <dd id="storage-favorite-count">-</dd>
+            </div>
+            <div>
+              <dt>Total Bytes</dt>
+              <dd id="storage-total-bytes">-</dd>
+            </div>
+            <div>
+              <dt>File Bytes</dt>
+              <dd id="storage-file-bytes">-</dd>
+            </div>
+            <div>
+              <dt>Last Cleanup</dt>
+              <dd id="cleanup-last-run">-</dd>
+            </div>
+            <div>
+              <dt>Last Result</dt>
+              <dd id="cleanup-last-result">-</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="panel cleanup-settings-panel">
+          <div class="panel-head">
+            <h2>Cleanup Policy</h2>
+            <button id="save-cleanup-settings-button" type="button">Save Policy</button>
+          </div>
+          <div class="settings-grid">
+            <label>
+              TTL Hours
+              <input id="cleanup-ttl-hours" type="number" min="1" />
+            </label>
+            <label>
+              Max Items
+              <input id="cleanup-max-items" type="number" min="1" />
+            </label>
+            <label>
+              Max Total Size MB
+              <input id="cleanup-max-size-mb" type="number" min="1" />
+            </label>
+            <label>
+              Interval Minutes
+              <input id="cleanup-interval-minutes" type="number" min="1" />
+            </label>
+            <label class="checkbox-row">
+              <input id="cleanup-enabled" type="checkbox" />
+              Cleaner Enabled
+            </label>
+          </div>
+        </article>
+
+        <article class="panel favorites-panel">
+          <div class="panel-head">
+            <h2>Favorites</h2>
+            <button id="refresh-favorites-button" type="button" class="secondary">Refresh</button>
+          </div>
+          <ul id="favorites-list" class="history-list"></ul>
+        </article>
+
+        <article class="panel history-panel">
+          <div class="panel-head">
+            <h2>Clipboard History</h2>
+            <button id="refresh-history-button" type="button" class="secondary">Refresh</button>
+          </div>
+          <div class="filters-row">
+            <div class="field-column">
+              <label for="history-category-filter">Category Filter</label>
+              <select id="history-category-filter"></select>
+            </div>
+            <div class="field-column">
+              <label for="new-category-input">New Category</label>
+              <div class="inline-row">
+                <input id="new-category-input" type="text" placeholder="e.g. work" />
+                <button id="create-category-button" type="button" class="secondary">Add</button>
+              </div>
+            </div>
+          </div>
+          <ul id="history-list" class="history-list"></ul>
+        </article>
+
+        <article class="panel devices-panel">
+          <div class="panel-head">
+            <h2>Paired Devices</h2>
+            <button id="refresh-devices-button" type="button" class="secondary">Refresh</button>
+          </div>
+          <ul id="devices-list" class="devices-list"></ul>
+        </article>
+      </section>
+
+      <section class="panel activity-panel">
+        <div class="panel-head">
+          <h2>Activity</h2>
+          <button id="clear-notices-button" type="button" class="secondary">Clear</button>
+        </div>
+        <ul id="notice-list" class="notice-list"></ul>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

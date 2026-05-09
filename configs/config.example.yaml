@@ -1,0 +1,52 @@
+# ClipBridgeServer example configuration.
+#
+# Copy this file to `config.yaml` in the project root before running the server:
+#
+#   cp configs/config.example.yaml config.yaml
+
+auth:
+  # Shared admin token for management APIs such as pairing code generation and
+  # cleanup settings.
+  token: "dev-token-123"
+
+server:
+  # Listen address.
+  # 0.0.0.0 means the server accepts connections from other devices in the LAN.
+  # Use 127.0.0.1 if you only want local access during development.
+  host: "0.0.0.0"
+
+  # HTTP port used by the API server.
+  port: 8787
+
+storage:
+  # Directory used by the server to store runtime data.
+  data_dir: "./data"
+
+  # SQLite database path.
+  database_path: "./data/clipbridge.db"
+
+  # Default retention TTL for non-favorite items in hours.
+  ttl_hours: 168
+
+  # Default maximum number of active history items.
+  max_items: 1000
+
+  # Default maximum active storage size in MB.
+  max_total_size_mb: 2048
+
+limits:
+  # Minimum allowed text clipboard size in bytes.
+  min_text_bytes: 1
+
+  # Maximum allowed text clipboard size in bytes.
+  max_text_bytes: 262144
+
+  # Maximum allowed HTTP request body size in bytes.
+  max_request_bytes: 1048576
+
+cleaner:
+  # Background cleanup worker switch.
+  enabled: true
+
+  # How often the worker should wake up and reload policy.
+  interval_minutes: 30
