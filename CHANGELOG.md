@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.11.0
+## v0.1.0-beta.1 "Lea"
+
+First public beta release of ClipBridgeServer.
+
+## 0.0.11
 
 - added persisted WebDAV settings through `GET /api/settings/webdav` and `PATCH /api/settings/webdav`
 - added `POST /api/admin/webdav/test`, `POST /api/admin/webdav/sync`, and `GET /api/admin/webdav/status`
@@ -9,7 +13,7 @@
 - updated the embedded Web UI with WebDAV settings, connection testing, and manual sync
 - added `docs/webdav-sync.md`
 
-## 0.10.0
+## 0.0.10
 
 - added `scripts/build-release.sh` for local multi-platform release builds
 - added `.github/workflows/release.yml` for test, build, and tagged GitHub Release publishing
@@ -18,14 +22,14 @@
 - added Homebrew Tap and Scoop template manifests
 - added `docs/deployment.md` and `docs/deployment.zh-CN.md`
 
-## 0.9.0
+## 0.0.9
 
 - added `GET /api/settings` and `PATCH /api/settings`
 - added `GET /api/settings/limits` and `PATCH /api/settings/limits`
 - made admin token and request limits runtime-persisted settings
 - updated the embedded Web UI with runtime settings and limits panels
 
-## 0.8.0
+## 0.0.8
 
 - added link clipboard uploads through `POST /api/clipboard/link`
 - added image and file uploads through `POST /api/clipboard/file`
@@ -35,7 +39,7 @@
 - expanded clipboard history and latest endpoints to cover text, image, link, and file items
 - updated the embedded Web UI to distinguish mixed clipboard item types
 
-## 0.7.0
+## 0.0.7
 
 - added a Web UI quick clipboard panel that reuses the existing clipboard API
 - added support for `content` and source metadata in clipboard uploads
@@ -50,7 +54,7 @@
 - added Web UI panels for retention status and cleanup policy editing
 - updated README and docs for phases 6.5 and 7
 
-## 0.6.0
+## 0.0.6
 
 - added favorite state to clipboard records
 - added favorite and unfavorite APIs for clipboard items
@@ -62,7 +66,7 @@
 - expanded store and API tests to cover favorites and categories
 - updated `README.md` and `docs/api.md` for the phase 6 workflow
 
-## 0.5.0
+## 0.0.5
 
 - added an embedded Web UI served from `GET /`
 - embedded `web/dist` into the Go binary
@@ -70,7 +74,7 @@
 - added browser actions for delete, copy, and pairing code generation
 - preserved the single-binary deployment model
 
-## 0.4.5
+## 0.0.4.5
 
 - added one-time pairing codes with 5 minute expiry
 - added long-lived device tokens for clipboard clients
@@ -80,7 +84,7 @@
 - added pairing and device authentication tests
 - reserved a pairing URI for future QR-based onboarding
 
-## 0.4.0
+## 0.0.4
 
 - added bearer token protection for all non-health API routes
 - changed success responses to use a top-level `data` envelope
@@ -90,7 +94,7 @@
 - added basic request logging with method, path, status code, and duration
 - documented token usage, response envelopes, and error behavior
 
-## 0.3.0
+## 0.0.3
 
 - added the text clipboard API for phase 3
 - added `POST /api/clipboard/text`
@@ -103,7 +107,7 @@
 - added store and API tests for the new text flow
 - documented the single-binary plus `config.yaml` plus `data/` deployment principle
 
-## 0.2.0
+## 0.0.2
 
 - added the SQLite foundation layer for phase 2
 - restored `storage.data_dir` and `storage.database_path` as active config keys
@@ -113,7 +117,7 @@
 - verified `data/clipbridge.db` is created automatically
 - kept `GET /api/health` unchanged after adding SQLite
 
-## 0.1.0
+## 0.0.1
 
 - created the minimal Go server skeleton for stable startup
 - normalized imports to match module path `github.com/cinmou/ClipBridgeServer`
