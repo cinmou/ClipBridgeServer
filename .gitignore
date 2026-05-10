@@ -38,3 +38,7 @@ dist/
 debug/
 internal/api/data/
 .DS_Store
+clipbridge-server
+config.yaml
+clipbridge-server.exe
+config.yaml
