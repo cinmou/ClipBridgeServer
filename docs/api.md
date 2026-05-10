@@ -44,13 +44,14 @@ Failed responses use:
 
 `GET /` serves the built Web UI from inside the Go binary.
 
-Current phase 7 behavior:
+Current phase 11 behavior:
 
 - the browser saves the chosen admin token or device token in local storage
 - the UI reuses that token for later API calls
-- the UI can upload browser text to the clipboard stack through the existing clipboard API
-- the UI can show latest clipboard, history, favorites, pairing codes, devices, cleanup status, and cleanup settings
+- the UI can upload browser text, links, images, and files through existing clipboard APIs
+- the UI can show latest clipboard, mixed-type history, favorites, pairing codes, devices, cleanup status, runtime settings, and WebDAV sync status
 - the UI can manually copy latest server text into the browser clipboard
+- the UI can save WebDAV settings, test the connection, and trigger one manual sync
 
 ## Health Check
 
@@ -142,6 +143,30 @@ Web UI compatible request body, using the same API:
 }
 ```
 
+### `POST /api/clipboard/link`
+
+Stores one link clipboard item.
+
+Request:
+
+```json
+{
+  "url": "https://example.com",
+  "source_device_id": "web-ui",
+  "source_device_name": "Web UI"
+}
+```
+
+### `POST /api/clipboard/file`
+
+Stores one image or generic file clipboard item through `multipart/form-data`.
+
+Form fields:
+
+- `file`: binary file payload
+- `source_device_id`: optional source identifier
+- `source_device_name`: optional source name
+
 Possible errors:
 
 - `401` when the token is missing, invalid, or revoked
@@ -150,11 +175,11 @@ Possible errors:
 
 ### `GET /api/clipboard/latest`
 
-Returns the newest non-deleted text clipboard item.
+Returns the newest non-deleted clipboard item across all supported types.
 
 ### `GET /api/clipboard/history`
 
-Returns text clipboard items ordered from newest to oldest.
+Returns clipboard items ordered from newest to oldest.
 
 Optional filter:
 
@@ -169,6 +194,15 @@ Returns one non-deleted text clipboard item by id.
 ### `DELETE /api/clipboard/items/{id}`
 
 Soft-deletes one text clipboard item by id.
+
+### `GET /api/clipboard/items/{id}/file`
+
+Streams one stored image or file payload back to the client.
+
+Notes:
+
+- images are served inline for preview-capable clients
+- generic files are served as downloadable attachments
 
 ## Favorites
 
@@ -288,6 +322,89 @@ Returns the current active storage summary:
 - `favorite_count`
 - `total_bytes`
 - `file_bytes`
+
+## Runtime Settings
+
+### `GET /api/settings`
+
+Requires the admin token.
+
+Returns the combined runtime settings and startup-only settings.
+
+### `PATCH /api/settings`
+
+Requires the admin token.
+
+Current implementation supports changing:
+
+- `admin_token`
+
+### `GET /api/settings/webdav`
+
+Requires the admin token.
+
+Returns the persisted WebDAV sync preview settings.
+
+### `PATCH /api/settings/webdav`
+
+Requires the admin token.
+
+Updates the persisted WebDAV sync preview settings.
+
+Request:
+
+```json
+{
+  "enabled": true,
+  "url": "https://dav.example.com/remote.php/dav/files/user",
+  "username": "demo",
+  "password": "secret",
+  "base_path": "ClipBridgeServer"
+}
+```
+
+### `GET /api/settings/limits`
+
+Requires the admin token.
+
+Returns the persisted runtime size limits.
+
+### `PATCH /api/settings/limits`
+
+Requires the admin token.
+
+Updates:
+
+- text min and max bytes
+- image min and max bytes
+- file min and max bytes
+- link min and max bytes
+- max request bytes
+
+## WebDAV Sync Preview
+
+### `POST /api/admin/webdav/test`
+
+Requires the admin token.
+
+Tests the current persisted WebDAV settings and records the latest test result.
+
+### `POST /api/admin/webdav/sync`
+
+Requires the admin token.
+
+Runs one manual WebDAV sync pass:
+
+- pushes local clipboard metadata
+- pushes local image and file payloads
+- pulls remote items not seen locally yet
+- stores the latest sync summary in the settings table
+
+### `GET /api/admin/webdav/status`
+
+Requires the admin token.
+
+Returns the latest connection test and sync summary.
 
 ## Safety Limits
 

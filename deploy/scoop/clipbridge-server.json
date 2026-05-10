@@ -1,0 +1,26 @@
+{
+  "version": "0.10.0",
+  "description": "Self-hosted clipboard stack service with an embedded Web UI",
+  "homepage": "https://github.com/cinmou/ClipBridgeServer",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/cinmou/ClipBridgeServer/releases/download/v0.10.0/clipbridge-server-windows-amd64.exe",
+      "hash": "REPLACE_WITH_REAL_SHA256"
+    }
+  },
+  "bin": "clipbridge-server-windows-amd64.exe",
+  "suggest": {
+    "nssm": "nssm"
+  },
+  "checkver": {
+    "github": "https://github.com/cinmou/ClipBridgeServer"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/cinmou/ClipBridgeServer/releases/download/v$version/clipbridge-server-windows-amd64.exe"
+      }
+    }
+  }
+}

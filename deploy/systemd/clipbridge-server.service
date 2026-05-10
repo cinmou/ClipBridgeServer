@@ -1,0 +1,17 @@
+[Unit]
+Description=ClipBridgeServer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=clipbridge
+Group=clipbridge
+WorkingDirectory=/opt/clipbridge
+ExecStart=/opt/clipbridge/clipbridge-server -config /opt/clipbridge/config.yaml
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

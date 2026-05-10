@@ -11,11 +11,11 @@
     <main class="app-shell">
       <section class="hero-card">
         <div>
-          <p class="eyebrow">Phase 7 Self-Hosted Runtime</p>
+          <p class="eyebrow">Phase 11 Runtime Console</p>
           <h1>ClipBridge Console</h1>
           <p class="hero-copy">
-            Use the browser as a lightweight clipboard client, organize history with favorites
-            and categories, and keep long-running storage under control from the same binary.
+            Upload text, links, images, and files into the clipboard stack, organize history,
+            adjust runtime policy, and preview self-hosted WebDAV sync from the same embedded Web UI.
           </p>
         </div>
         <div class="token-panel">
@@ -36,17 +36,29 @@
           <div class="panel-head">
             <h2>Quick Clipboard</h2>
             <div class="panel-actions">
-              <button id="upload-quick-button" type="button">Upload To Server</button>
-              <button id="copy-latest-button" type="button" class="secondary">Copy Server Latest</button>
               <button id="refresh-latest-button" type="button" class="secondary">Refresh Latest</button>
+              <button id="copy-latest-button" type="button" class="secondary">Copy Latest</button>
             </div>
           </div>
-          <label for="quick-clipboard-input">Browser Text</label>
-          <textarea
-            id="quick-clipboard-input"
-            rows="5"
-            placeholder="Type or paste text here, then upload it into the ClipBridge stack."
-          ></textarea>
+          <div class="field-stack">
+            <label for="quick-clipboard-input">Text</label>
+            <textarea id="quick-clipboard-input" rows="4" placeholder="Type or paste text here."></textarea>
+            <button id="upload-quick-button" type="button">Upload Text</button>
+          </div>
+          <div class="field-stack">
+            <label for="quick-link-input">Link</label>
+            <div class="inline-row">
+              <input id="quick-link-input" type="url" placeholder="https://example.com" />
+              <button id="upload-link-button" type="button" class="secondary">Upload Link</button>
+            </div>
+          </div>
+          <div class="field-stack">
+            <label for="quick-file-input">Image Or File</label>
+            <div class="inline-row">
+              <input id="quick-file-input" type="file" />
+              <button id="upload-file-button" type="button" class="secondary">Upload File</button>
+            </div>
+          </div>
           <div class="quick-latest">
             <span class="mini-label">Latest From Server</span>
             <p id="latest-empty" class="muted">No clipboard item loaded yet.</p>
@@ -58,12 +70,10 @@
               <div class="clipboard-tags">
                 <span id="latest-type" class="tag">text</span>
                 <span id="latest-category" class="tag tag-accent">-</span>
-                <span id="latest-favorite" class="tag tag-favorite">Not Favorite</span>
+                <span id="latest-favorite" class="tag tag-favorite">Normal</span>
               </div>
-              <pre id="latest-text"></pre>
-              <div class="muted latest-source">
-                From: <span id="latest-source-name">-</span>
-              </div>
+              <div id="latest-content"></div>
+              <div class="muted latest-source">From: <span id="latest-source-name">-</span></div>
               <div class="panel-actions">
                 <button id="toggle-latest-favorite-button" type="button" class="secondary">Favorite</button>
                 <button id="delete-latest-button" type="button" class="danger">Delete</button>
@@ -95,27 +105,36 @@
           </dl>
         </article>
 
-        <article class="panel pairing-panel">
+        <article class="panel settings-panel">
           <div class="panel-head">
-            <h2>Pair Devices</h2>
-            <button id="generate-pairing-button" type="button">Generate Code</button>
+            <h2>Runtime Settings</h2>
+            <button id="save-admin-token-button" type="button">Save Token</button>
           </div>
-          <p class="muted">
-            Use your admin token here. New pairing codes last 5 minutes and work once.
-          </p>
-          <div id="pairing-output" class="pairing-output hidden">
-            <div>
-              <span class="mini-label">Pairing Code</span>
-              <strong id="pairing-code-value">-</strong>
-            </div>
-            <div>
-              <span class="mini-label">Expires</span>
-              <strong id="pairing-code-expiry">-</strong>
-            </div>
-            <div>
-              <span class="mini-label">Pairing URI</span>
-              <code id="pairing-code-uri">-</code>
-            </div>
+          <div class="field-stack">
+            <label for="admin-token-input">Admin Token</label>
+            <input id="admin-token-input" type="password" placeholder="Change management token" />
+          </div>
+          <div class="field-stack">
+            <span class="mini-label">Restart Required Settings</span>
+            <div id="startup-settings" class="settings-summary muted"></div>
+          </div>
+        </article>
+
+        <article class="panel limits-panel">
+          <div class="panel-head">
+            <h2>Limits</h2>
+            <button id="save-limits-button" type="button">Save Limits</button>
+          </div>
+          <div class="settings-grid">
+            <label>Text Min<input id="limit-min-text" type="number" min="0" /></label>
+            <label>Text Max<input id="limit-max-text" type="number" min="1" /></label>
+            <label>Image Min<input id="limit-min-image" type="number" min="0" /></label>
+            <label>Image Max<input id="limit-max-image" type="number" min="1" /></label>
+            <label>File Min<input id="limit-min-file" type="number" min="0" /></label>
+            <label>File Max<input id="limit-max-file" type="number" min="1" /></label>
+            <label>Link Min<input id="limit-min-link" type="number" min="0" /></label>
+            <label>Link Max<input id="limit-max-link" type="number" min="1" /></label>
+            <label>Request Max<input id="limit-max-request" type="number" min="1" /></label>
           </div>
         </article>
 
@@ -128,30 +147,12 @@
             </div>
           </div>
           <dl class="meta-grid">
-            <div>
-              <dt>History Items</dt>
-              <dd id="storage-history-count">-</dd>
-            </div>
-            <div>
-              <dt>Favorites</dt>
-              <dd id="storage-favorite-count">-</dd>
-            </div>
-            <div>
-              <dt>Total Bytes</dt>
-              <dd id="storage-total-bytes">-</dd>
-            </div>
-            <div>
-              <dt>File Bytes</dt>
-              <dd id="storage-file-bytes">-</dd>
-            </div>
-            <div>
-              <dt>Last Cleanup</dt>
-              <dd id="cleanup-last-run">-</dd>
-            </div>
-            <div>
-              <dt>Last Result</dt>
-              <dd id="cleanup-last-result">-</dd>
-            </div>
+            <div><dt>History Items</dt><dd id="storage-history-count">-</dd></div>
+            <div><dt>Favorites</dt><dd id="storage-favorite-count">-</dd></div>
+            <div><dt>Total Bytes</dt><dd id="storage-total-bytes">-</dd></div>
+            <div><dt>File Bytes</dt><dd id="storage-file-bytes">-</dd></div>
+            <div><dt>Last Cleanup</dt><dd id="cleanup-last-run">-</dd></div>
+            <div><dt>Last Result</dt><dd id="cleanup-last-result">-</dd></div>
           </dl>
         </article>
 
@@ -161,26 +162,53 @@
             <button id="save-cleanup-settings-button" type="button">Save Policy</button>
           </div>
           <div class="settings-grid">
-            <label>
-              TTL Hours
-              <input id="cleanup-ttl-hours" type="number" min="1" />
-            </label>
-            <label>
-              Max Items
-              <input id="cleanup-max-items" type="number" min="1" />
-            </label>
-            <label>
-              Max Total Size MB
-              <input id="cleanup-max-size-mb" type="number" min="1" />
-            </label>
-            <label>
-              Interval Minutes
-              <input id="cleanup-interval-minutes" type="number" min="1" />
-            </label>
-            <label class="checkbox-row">
-              <input id="cleanup-enabled" type="checkbox" />
-              Cleaner Enabled
-            </label>
+            <label>TTL Hours<input id="cleanup-ttl-hours" type="number" min="1" /></label>
+            <label>Max Items<input id="cleanup-max-items" type="number" min="1" /></label>
+            <label>Max Total Size MB<input id="cleanup-max-size-mb" type="number" min="1" /></label>
+            <label>Interval Minutes<input id="cleanup-interval-minutes" type="number" min="1" /></label>
+            <label class="checkbox-row"><input id="cleanup-enabled" type="checkbox" />Cleaner Enabled</label>
+          </div>
+        </article>
+
+        <article class="panel webdav-panel">
+          <div class="panel-head">
+            <h2>WebDAV Sync</h2>
+            <div class="panel-actions">
+              <button id="test-webdav-button" type="button" class="secondary">Test Connection</button>
+              <button id="sync-webdav-button" type="button">Run Sync</button>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button id="save-webdav-settings-button" type="button">Save WebDAV Settings</button>
+            <button id="refresh-webdav-button" type="button" class="secondary">Refresh Status</button>
+          </div>
+          <div class="settings-grid">
+            <label>URL<input id="webdav-url" type="url" placeholder="https://dav.example.com/remote.php/dav/files/user" /></label>
+            <label>Username<input id="webdav-username" type="text" placeholder="WebDAV username" /></label>
+            <label>Password<input id="webdav-password" type="password" placeholder="WebDAV password" /></label>
+            <label>Base Path<input id="webdav-base-path" type="text" placeholder="ClipBridgeServer" /></label>
+            <label class="checkbox-row"><input id="webdav-enabled" type="checkbox" />Enable WebDAV Sync</label>
+          </div>
+          <dl class="meta-grid">
+            <div><dt>Last Test</dt><dd id="webdav-tested-at">-</dd></div>
+            <div><dt>Test Result</dt><dd id="webdav-test-result">-</dd></div>
+            <div><dt>Last Sync</dt><dd id="webdav-last-sync">-</dd></div>
+            <div><dt>Last Success</dt><dd id="webdav-last-success">-</dd></div>
+            <div><dt>Sync Result</dt><dd id="webdav-sync-result">-</dd></div>
+            <div><dt>Transfer</dt><dd id="webdav-transfer-summary">-</dd></div>
+          </dl>
+        </article>
+
+        <article class="panel pairing-panel">
+          <div class="panel-head">
+            <h2>Pair Devices</h2>
+            <button id="generate-pairing-button" type="button">Generate Code</button>
+          </div>
+          <p class="muted">Use your admin token here. New pairing codes last 5 minutes and work once.</p>
+          <div id="pairing-output" class="pairing-output hidden">
+            <div><span class="mini-label">Pairing Code</span><strong id="pairing-code-value">-</strong></div>
+            <div><span class="mini-label">Expires</span><strong id="pairing-code-expiry">-</strong></div>
+            <div><span class="mini-label">Pairing URI</span><code id="pairing-code-uri">-</code></div>
           </div>
         </article>
 

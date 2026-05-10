@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.11.0
+
+- added persisted WebDAV settings through `GET /api/settings/webdav` and `PATCH /api/settings/webdav`
+- added `POST /api/admin/webdav/test`, `POST /api/admin/webdav/sync`, and `GET /api/admin/webdav/status`
+- added manual WebDAV sync preview for text, link, image, and file clipboard items
+- added deterministic sync keys and import helpers for remote clipboard items
+- updated the embedded Web UI with WebDAV settings, connection testing, and manual sync
+- added `docs/webdav-sync.md`
+
+## 0.10.0
+
+- added `scripts/build-release.sh` for local multi-platform release builds
+- added `.github/workflows/release.yml` for test, build, and tagged GitHub Release publishing
+- added `Dockerfile` and `docker-compose.example.yml`
+- added `systemd`, `launchd`, Windows NSSM, and OpenWrt service examples
+- added Homebrew Tap and Scoop template manifests
+- added `docs/deployment.md` and `docs/deployment.zh-CN.md`
+
+## 0.9.0
+
+- added `GET /api/settings` and `PATCH /api/settings`
+- added `GET /api/settings/limits` and `PATCH /api/settings/limits`
+- made admin token and request limits runtime-persisted settings
+- updated the embedded Web UI with runtime settings and limits panels
+
+## 0.8.0
+
+- added link clipboard uploads through `POST /api/clipboard/link`
+- added image and file uploads through `POST /api/clipboard/file`
+- added file and image downloads through `GET /api/clipboard/items/{id}/file`
+- stored file metadata in SQLite while streaming binary content to disk
+- added SHA-256 hashing and MIME detection for uploaded files
+- expanded clipboard history and latest endpoints to cover text, image, link, and file items
+- updated the embedded Web UI to distinguish mixed clipboard item types
+
 ## 0.7.0
 
 - added a Web UI quick clipboard panel that reuses the existing clipboard API

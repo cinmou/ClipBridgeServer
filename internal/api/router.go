@@ -13,6 +13,7 @@ import (
 	"github.com/cinmou/ClipBridgeServer/internal/cleanup"
 	"github.com/cinmou/ClipBridgeServer/internal/config"
 	"github.com/cinmou/ClipBridgeServer/internal/store"
+	"github.com/cinmou/ClipBridgeServer/internal/webdav"
 )
 
 const pairingCodeTTL = 5 * time.Minute
@@ -24,15 +25,17 @@ type Router struct {
 	store   *store.SQLiteStore
 	config  *config.Config
 	cleaner *cleanup.Service
+	webdav  *webdav.Service
 	webUI   http.Handler
 }
 
 // NewRouter builds the route table for the current server phase.
-func NewRouter(dbStore *store.SQLiteStore, cfg *config.Config, cleanerService *cleanup.Service, webUI http.Handler) http.Handler {
+func NewRouter(dbStore *store.SQLiteStore, cfg *config.Config, cleanerService *cleanup.Service, webdavService *webdav.Service, webUI http.Handler) http.Handler {
 	router := &Router{
 		store:   dbStore,
 		config:  cfg,
 		cleaner: cleanerService,
+		webdav:  webdavService,
 		webUI:   webUI,
 	}
 
@@ -42,6 +45,8 @@ func NewRouter(dbStore *store.SQLiteStore, cfg *config.Config, cleanerService *c
 
 	clipboardMux := http.NewServeMux()
 	clipboardMux.HandleFunc("/api/clipboard/text", router.handleClipboardText)
+	clipboardMux.HandleFunc("/api/clipboard/file", router.handleClipboardFile)
+	clipboardMux.HandleFunc("/api/clipboard/link", router.handleClipboardLink)
 	clipboardMux.HandleFunc("/api/clipboard/latest", router.handleClipboardLatest)
 	clipboardMux.HandleFunc("/api/clipboard/history", router.handleClipboardHistory)
 	clipboardMux.HandleFunc("/api/clipboard/items/", router.handleClipboardItemRoutes)
@@ -55,7 +60,13 @@ func NewRouter(dbStore *store.SQLiteStore, cfg *config.Config, cleanerService *c
 	adminMux.HandleFunc("/api/admin/cleanup/run", router.handleAdminCleanupRun)
 	adminMux.HandleFunc("/api/admin/cleanup/status", router.handleAdminCleanupStatus)
 	adminMux.HandleFunc("/api/admin/storage/status", router.handleAdminStorageStatus)
+	adminMux.HandleFunc("/api/admin/webdav/test", router.handleAdminWebDAVTest)
+	adminMux.HandleFunc("/api/admin/webdav/sync", router.handleAdminWebDAVSync)
+	adminMux.HandleFunc("/api/admin/webdav/status", router.handleAdminWebDAVStatus)
+	adminMux.HandleFunc("/api/settings", router.handleSettings)
+	adminMux.HandleFunc("/api/settings/limits", router.handleSettingsLimits)
 	adminMux.HandleFunc("/api/settings/cleanup", router.handleCleanupSettings)
+	adminMux.HandleFunc("/api/settings/webdav", router.handleWebDAVSettings)
 
 	return router.loggingMiddleware(
 		router.corsMiddleware(
@@ -81,6 +92,8 @@ func (r *Router) routeAPIMiddleware(publicMux http.Handler, adminMux http.Handle
 			adminMux.ServeHTTP(w, req)
 		case strings.HasPrefix(req.URL.Path, "/api/admin/"):
 			adminMux.ServeHTTP(w, req)
+		case req.URL.Path == "/api/settings":
+			adminMux.ServeHTTP(w, req)
 		case strings.HasPrefix(req.URL.Path, "/api/settings/"):
 			adminMux.ServeHTTP(w, req)
 		case strings.HasPrefix(req.URL.Path, "/api/clipboard/"):
@@ -98,7 +111,7 @@ func (r *Router) routeAPIMiddleware(publicMux http.Handler, adminMux http.Handle
 func (r *Router) adminAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		token, ok := auth.ExtractBearerToken(req)
-		if !ok || token != r.config.Auth.Token {
+		if !ok || token != r.currentAdminToken(req.Context()) {
 			writeJSONError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
@@ -115,7 +128,7 @@ func (r *Router) clipboardAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if token == r.config.Auth.Token {
+		if token == r.currentAdminToken(req.Context()) {
 			next.ServeHTTP(w, req)
 			return
 		}
@@ -137,7 +150,7 @@ func (r *Router) requestSizeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		// One global request-size limit keeps the API on a predictable safety
 		// baseline before any handler starts decoding JSON.
-		req.Body = http.MaxBytesReader(w, req.Body, int64(r.config.Limits.MaxRequestBytes))
+		req.Body = http.MaxBytesReader(w, req.Body, int64(r.currentLimits(req.Context()).MaxRequestBytes))
 		next.ServeHTTP(w, req)
 	})
 }

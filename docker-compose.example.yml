@@ -1,0 +1,13 @@
+services:
+  clipbridge-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clipbridge-server
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./data:/app/data
+      - ./config.yaml:/app/config.yaml:ro
+    command: ["-config", "/app/config.yaml"]

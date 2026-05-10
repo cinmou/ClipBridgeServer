@@ -7,17 +7,21 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/cinmou/ClipBridgeServer/internal/cleanup"
 	"github.com/cinmou/ClipBridgeServer/internal/config"
 	"github.com/cinmou/ClipBridgeServer/internal/store"
+	"github.com/cinmou/ClipBridgeServer/internal/webdav"
 	webui "github.com/cinmou/ClipBridgeServer/web"
 )
 
@@ -167,6 +171,148 @@ func TestQuickClipboardUploadPayloadUsesExistingClipboardAPI(t *testing.T) {
 	}
 	if item.SourceID != "web-ui" || item.SourceName != "Web UI" {
 		t.Fatalf("created item source = (%q, %q), want (%q, %q)", item.SourceID, item.SourceName, "web-ui", "Web UI")
+	}
+}
+
+func TestLinkAndFileClipboardFlow(t *testing.T) {
+	t.Parallel()
+
+	testContext := newTestContext(t)
+
+	linkResponse := performJSONRequest(
+		t,
+		testContext.router,
+		http.MethodPost,
+		"/api/clipboard/link",
+		map[string]string{
+			"url":                "https://example.com/demo",
+			"source_device_id":   "web-ui",
+			"source_device_name": "Web UI",
+		},
+		adminToken,
+	)
+	if linkResponse.Code != http.StatusCreated {
+		t.Fatalf("POST /api/clipboard/link status = %d, want %d", linkResponse.Code, http.StatusCreated)
+	}
+	linkItem := decodeClipboardItemData(t, linkResponse)
+	if linkItem.Type != "link" || linkItem.Category != "link" {
+		t.Fatalf("link item = %+v, want type/category link", linkItem)
+	}
+
+	imageBytes := []byte{
+		0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n',
+		0x00, 0x00, 0x00, 0x0d, 'I', 'H', 'D', 'R',
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+	}
+	fileResponse := performMultipartUpload(
+		t,
+		testContext.router,
+		"/api/clipboard/file",
+		"preview.png",
+		imageBytes,
+		map[string]string{
+			"source_device_id":   "web-ui",
+			"source_device_name": "Web UI",
+		},
+		adminToken,
+	)
+	if fileResponse.Code != http.StatusCreated {
+		t.Fatalf("POST /api/clipboard/file status = %d, want %d", fileResponse.Code, http.StatusCreated)
+	}
+	fileItem := decodeClipboardItemData(t, fileResponse)
+	if fileItem.Type != "image" {
+		t.Fatalf("file item type = %q, want %q", fileItem.Type, "image")
+	}
+	if fileItem.DownloadURL == "" || fileItem.PreviewURL == "" {
+		t.Fatalf("file item urls = %+v, want download and preview urls", fileItem)
+	}
+
+	historyResponse := performRequest(t, testContext.router, http.MethodGet, "/api/clipboard/history", nil, adminToken)
+	if historyResponse.Code != http.StatusOK {
+		t.Fatalf("GET /api/clipboard/history status = %d, want %d", historyResponse.Code, http.StatusOK)
+	}
+
+	var historyPayload struct {
+		Data clipboardHistoryResponse `json:"data"`
+	}
+	if err := json.Unmarshal(historyResponse.Body.Bytes(), &historyPayload); err != nil {
+		t.Fatalf("decode history response error = %v", err)
+	}
+	if len(historyPayload.Data.Items) != 2 {
+		t.Fatalf("history items len = %d, want 2", len(historyPayload.Data.Items))
+	}
+
+	downloadResponse := performRequest(t, testContext.router, http.MethodGet, fileItem.DownloadURL, nil, adminToken)
+	if downloadResponse.Code != http.StatusOK {
+		t.Fatalf("GET %s status = %d, want %d", fileItem.DownloadURL, downloadResponse.Code, http.StatusOK)
+	}
+	if got := downloadResponse.Header().Get("Content-Type"); got == "" || got == "application/octet-stream" {
+		t.Fatalf("download content-type = %q, want detected image mime", got)
+	}
+	if !bytes.Equal(downloadResponse.Body.Bytes(), imageBytes) {
+		t.Fatalf("downloaded bytes = %v, want %v", downloadResponse.Body.Bytes(), imageBytes)
+	}
+}
+
+func TestSettingsLimitsAndAdminTokenCanBeUpdated(t *testing.T) {
+	t.Parallel()
+
+	testContext := newTestContext(t)
+
+	limitsResponse := performJSONRequest(
+		t,
+		testContext.router,
+		http.MethodPatch,
+		"/api/settings/limits",
+		store.LimitsSettings{
+			MinTextBytes:    1,
+			MaxTextBytes:    4,
+			MinImageBytes:   1,
+			MaxImageBytes:   64,
+			MinFileBytes:    1,
+			MaxFileBytes:    64,
+			MinLinkBytes:    1,
+			MaxLinkBytes:    32,
+			MaxRequestBytes: 512,
+		},
+		adminToken,
+	)
+	if limitsResponse.Code != http.StatusOK {
+		t.Fatalf("PATCH /api/settings/limits status = %d, want %d", limitsResponse.Code, http.StatusOK)
+	}
+
+	tooLargeTextResponse := performJSONRequest(
+		t,
+		testContext.router,
+		http.MethodPost,
+		"/api/clipboard/text",
+		map[string]string{"text": "12345"},
+		adminToken,
+	)
+	if tooLargeTextResponse.Code != http.StatusBadRequest {
+		t.Fatalf("POST /api/clipboard/text after limits patch status = %d, want %d", tooLargeTextResponse.Code, http.StatusBadRequest)
+	}
+
+	settingsResponse := performJSONRequest(
+		t,
+		testContext.router,
+		http.MethodPatch,
+		"/api/settings",
+		map[string]string{"admin_token": "new-admin-token"},
+		adminToken,
+	)
+	if settingsResponse.Code != http.StatusOK {
+		t.Fatalf("PATCH /api/settings status = %d, want %d", settingsResponse.Code, http.StatusOK)
+	}
+
+	oldTokenResponse := performRequest(t, testContext.router, http.MethodGet, "/api/settings", nil, adminToken)
+	if oldTokenResponse.Code != http.StatusUnauthorized {
+		t.Fatalf("GET /api/settings with old token status = %d, want %d", oldTokenResponse.Code, http.StatusUnauthorized)
+	}
+
+	newTokenResponse := performRequest(t, testContext.router, http.MethodGet, "/api/settings", nil, "new-admin-token")
+	if newTokenResponse.Code != http.StatusOK {
+		t.Fatalf("GET /api/settings with new token status = %d, want %d", newTokenResponse.Code, http.StatusOK)
 	}
 }
 
@@ -434,7 +580,7 @@ func TestClipboardValidationAndRequestTooLarge(t *testing.T) {
 	}
 	assertErrorMessage(t, tooLargeTextResponse, "text must be at most 8 bytes")
 
-	oversizedJSON := []byte(`{"text":"` + strings.Repeat("a", 600) + `"}`)
+	oversizedJSON := []byte(`{"text":"` + strings.Repeat("a", 5000) + `"}`)
 	tooLargeRequestResponse := performRequest(t, testContext.router, http.MethodPost, "/api/clipboard/text", oversizedJSON, adminToken)
 	if tooLargeRequestResponse.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("oversized request status = %d, want %d", tooLargeRequestResponse.Code, http.StatusRequestEntityTooLarge)
@@ -561,6 +707,156 @@ func TestCleanupSettingsAndManualRun(t *testing.T) {
 	}
 }
 
+func TestWebDAVSettingsConnectionAndManualSync(t *testing.T) {
+	t.Parallel()
+
+	testContext := newTestContext(t)
+	webdavServer := newFakeWebDAVServer(t, "/dav", "demo", "secret")
+	testContext.webdav.SetHTTPClient(&http.Client{Transport: webdavServer})
+
+	settingsResponse := performJSONRequest(
+		t,
+		testContext.router,
+		http.MethodPatch,
+		"/api/settings/webdav",
+		store.WebDAVSettings{
+			Enabled:  true,
+			URL:      "http://webdav.test/dav",
+			Username: "demo",
+			Password: "secret",
+			BasePath: "ClipBridgeServer",
+		},
+		adminToken,
+	)
+	if settingsResponse.Code != http.StatusOK {
+		t.Fatalf("PATCH /api/settings/webdav status = %d, want %d", settingsResponse.Code, http.StatusOK)
+	}
+
+	testResponse := performRequest(t, testContext.router, http.MethodPost, "/api/admin/webdav/test", nil, adminToken)
+	if testResponse.Code != http.StatusOK {
+		t.Fatalf("POST /api/admin/webdav/test status = %d, want %d", testResponse.Code, http.StatusOK)
+	}
+
+	createTextResponse := performJSONRequest(
+		t,
+		testContext.router,
+		http.MethodPost,
+		"/api/clipboard/text",
+		map[string]string{"text": "local"},
+		adminToken,
+	)
+	if createTextResponse.Code != http.StatusCreated {
+		t.Fatalf("POST /api/clipboard/text status = %d, want %d", createTextResponse.Code, http.StatusCreated)
+	}
+
+	fileBytes := []byte("local-file-bytes")
+	createFileResponse := performMultipartUpload(
+		t,
+		testContext.router,
+		"/api/clipboard/file",
+		"demo.txt",
+		fileBytes,
+		map[string]string{},
+		adminToken,
+	)
+	if createFileResponse.Code != http.StatusCreated {
+		t.Fatalf("POST /api/clipboard/file status = %d, want %d", createFileResponse.Code, http.StatusCreated)
+	}
+
+	webdavServer.putJSON(t, "/dav/ClipBridgeServer/manifest.json", map[string]any{
+		"version":    1,
+		"updated_at": "2026-05-09T12:00:00Z",
+		"last_sync_at": "2026-05-09T12:00:00Z",
+		"item_count": 2,
+		"items": map[string]any{
+			"remote-text": map[string]any{
+				"type":       "text",
+				"updated_at": "2026-05-09T12:00:00Z",
+			},
+			"remote-file": map[string]any{
+				"type":       "file",
+				"updated_at": "2026-05-09T12:05:00Z",
+				"file_name":  "remote.bin",
+			},
+		},
+	})
+	webdavServer.putJSON(t, "/dav/ClipBridgeServer/items/remote-text.json", map[string]any{
+		"key":         "remote-text",
+		"type":        "text",
+		"text":        "remote text",
+		"category":    "text",
+		"size_bytes":  11,
+		"created_at":  "2026-05-09T12:00:00Z",
+		"updated_at":  "2026-05-09T12:00:00Z",
+		"is_favorite": false,
+	})
+	webdavServer.putJSON(t, "/dav/ClipBridgeServer/items/remote-file.json", map[string]any{
+		"key":         "remote-file",
+		"type":        "file",
+		"category":    "file",
+		"filename":    "remote.bin",
+		"mime_type":   "application/octet-stream",
+		"sha256":      "abc123",
+		"size_bytes":  12,
+		"created_at":  "2026-05-09T12:05:00Z",
+		"updated_at":  "2026-05-09T12:05:00Z",
+		"is_favorite": false,
+	})
+	webdavServer.putBytes("/dav/ClipBridgeServer/files/remote-file.bin", []byte("remote bytes"))
+
+	syncResponse := performRequest(t, testContext.router, http.MethodPost, "/api/admin/webdav/sync", nil, adminToken)
+	if syncResponse.Code != http.StatusOK {
+		t.Fatalf("POST /api/admin/webdav/sync status = %d, want %d body=%s", syncResponse.Code, http.StatusOK, syncResponse.Body.String())
+	}
+
+	var syncPayload struct {
+		Data store.WebDAVSyncStatus `json:"data"`
+	}
+	if err := json.Unmarshal(syncResponse.Body.Bytes(), &syncPayload); err != nil {
+		t.Fatalf("decode webdav sync response error = %v", err)
+	}
+	if syncPayload.Data.PulledItems != 2 {
+		t.Fatalf("pulled items = %d, want 2", syncPayload.Data.PulledItems)
+	}
+	if syncPayload.Data.PushedItems < 2 {
+		t.Fatalf("pushed items = %d, want at least 2", syncPayload.Data.PushedItems)
+	}
+
+	historyResponse := performRequest(t, testContext.router, http.MethodGet, "/api/clipboard/history", nil, adminToken)
+	if historyResponse.Code != http.StatusOK {
+		t.Fatalf("GET /api/clipboard/history status = %d, want %d", historyResponse.Code, http.StatusOK)
+	}
+
+	var historyPayload struct {
+		Data clipboardHistoryResponse `json:"data"`
+	}
+	if err := json.Unmarshal(historyResponse.Body.Bytes(), &historyPayload); err != nil {
+		t.Fatalf("decode history response error = %v", err)
+	}
+	if len(historyPayload.Data.Items) != 4 {
+		t.Fatalf("history items len = %d, want 4", len(historyPayload.Data.Items))
+	}
+
+	foundRemoteText := false
+	foundRemoteFile := false
+	for _, item := range historyPayload.Data.Items {
+		if item.Text == "remote text" {
+			foundRemoteText = true
+		}
+		if item.Filename == "remote.bin" && item.Type == "file" {
+			foundRemoteFile = true
+		}
+	}
+	if !foundRemoteText || !foundRemoteFile {
+		t.Fatalf("expected remote text and remote file in history, got %+v", historyPayload.Data.Items)
+	}
+
+	statusResponse := performRequest(t, testContext.router, http.MethodGet, "/api/admin/webdav/status", nil, adminToken)
+	if statusResponse.Code != http.StatusOK {
+		t.Fatalf("GET /api/admin/webdav/status status = %d, want %d", statusResponse.Code, http.StatusOK)
+	}
+}
+
 const adminToken = "test-admin-token-123"
 
 type testContext struct {
@@ -568,6 +864,7 @@ type testContext struct {
 	router http.Handler
 	store  *store.SQLiteStore
 	dbPath string
+	webdav *webdav.Service
 }
 
 func newTestContext(t *testing.T) testContext {
@@ -577,7 +874,7 @@ func newTestContext(t *testing.T) testContext {
 	cfg.Auth.Token = adminToken
 	cfg.Limits.MinTextBytes = 1
 	cfg.Limits.MaxTextBytes = 8
-	cfg.Limits.MaxRequestBytes = 512
+	cfg.Limits.MaxRequestBytes = 2048
 	cfg.Storage.TTLHours = 24
 	cfg.Storage.MaxItems = 10
 	cfg.Storage.MaxTotalSizeMB = 1
@@ -601,11 +898,104 @@ func newTestContext(t *testing.T) testContext {
 		cleanupService.Close()
 	})
 
+	webdavService := webdav.NewService(dbStore, cfg)
+
 	return testContext{
 		ctx:    context.Background(),
-		router: NewRouter(dbStore, cfg, cleanupService, webui.Handler()),
+		router: NewRouter(dbStore, cfg, cleanupService, webdavService, webui.Handler()),
 		store:  dbStore,
 		dbPath: dbPath,
+		webdav: webdavService,
+	}
+}
+
+type fakeWebDAVServer struct {
+	t        *testing.T
+	username string
+	password string
+	basePath string
+	mu       sync.Mutex
+	files    map[string][]byte
+}
+
+func newFakeWebDAVServer(t *testing.T, basePath, username, password string) *fakeWebDAVServer {
+	t.Helper()
+
+	fake := &fakeWebDAVServer{
+		t:        t,
+		username: username,
+		password: password,
+		basePath: basePath,
+		files:    make(map[string][]byte),
+	}
+	return fake
+}
+
+func (f *fakeWebDAVServer) putJSON(t *testing.T, remotePath string, payload any) {
+	t.Helper()
+
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	f.putBytes(remotePath, raw)
+}
+
+func (f *fakeWebDAVServer) putBytes(remotePath string, body []byte) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.files[remotePath] = append([]byte(nil), body...)
+}
+
+func (f *fakeWebDAVServer) RoundTrip(req *http.Request) (*http.Response, error) {
+	user, pass, ok := req.BasicAuth()
+	if !ok || user != f.username || pass != f.password {
+		return fakeHTTPResponse(req, http.StatusUnauthorized, nil, ""), nil
+	}
+	if !strings.HasPrefix(req.URL.Path, f.basePath) {
+		return fakeHTTPResponse(req, http.StatusNotFound, nil, ""), nil
+	}
+
+	switch req.Method {
+	case http.MethodOptions:
+		return fakeHTTPResponse(req, http.StatusOK, nil, ""), nil
+	case "MKCOL":
+		return fakeHTTPResponse(req, http.StatusCreated, nil, ""), nil
+	case http.MethodPut:
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		f.putBytes(req.URL.Path, body)
+		return fakeHTTPResponse(req, http.StatusCreated, nil, ""), nil
+	case http.MethodGet:
+		f.mu.Lock()
+		body, ok := f.files[req.URL.Path]
+		f.mu.Unlock()
+		if !ok {
+			return fakeHTTPResponse(req, http.StatusNotFound, nil, ""), nil
+		}
+		contentType := ""
+		if strings.HasSuffix(req.URL.Path, ".json") {
+			contentType = "application/json"
+		}
+		return fakeHTTPResponse(req, http.StatusOK, body, contentType), nil
+	default:
+		return fakeHTTPResponse(req, http.StatusMethodNotAllowed, nil, ""), nil
+	}
+}
+
+func fakeHTTPResponse(req *http.Request, statusCode int, body []byte, contentType string) *http.Response {
+	header := make(http.Header)
+	if contentType != "" {
+		header.Set("Content-Type", contentType)
+	}
+	return &http.Response{
+		StatusCode: statusCode,
+		Status:     strconv.Itoa(statusCode) + " " + http.StatusText(statusCode),
+		Header:     header,
+		Body:       io.NopCloser(bytes.NewReader(body)),
+		Request:    req,
 	}
 }
 
@@ -652,6 +1042,48 @@ func performRequest(t *testing.T, handler http.Handler, method, path string, bod
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 
+	return recorder
+}
+
+func performMultipartUpload(
+	t *testing.T,
+	handler http.Handler,
+	path string,
+	filename string,
+	fileBytes []byte,
+	fields map[string]string,
+	token string,
+) *httptest.ResponseRecorder {
+	t.Helper()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	for key, value := range fields {
+		if err := writer.WriteField(key, value); err != nil {
+			t.Fatalf("WriteField(%q) error = %v", key, err)
+		}
+	}
+
+	fileWriter, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		t.Fatalf("CreateFormFile() error = %v", err)
+	}
+	if _, err := fileWriter.Write(fileBytes); err != nil {
+		t.Fatalf("fileWriter.Write() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close() error = %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body.Bytes()))
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	if token != "" {
+		request.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
 	return recorder
 }
 

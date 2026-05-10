@@ -4,12 +4,20 @@ A lightweight self-hosted clipboard stack service for syncing text, pairing
 devices, managing history, and serving an embedded Web UI from one portable
 server binary.
 
+Language:
+
+- English: `README.md`
+- 简体中文: `README.zh-CN.md`
+
 ## Current Stage
 
-This repository is currently in phase 7, with phase 6.5 included:
+This repository is currently in phase 11, with WebDAV sync preview now added on
+top of deployment support:
 
-- phase 6.5: Web UI Quick Clipboard Panel
-- phase 7: cleaner plus retention policy
+- phase 8: image, file, and link support
+- phase 9: settings API plus Web settings
+- phase 10: deployment and release packaging
+- phase 11: WebDAV sync preview
 
 The service can now do three important things at the same time:
 
@@ -17,15 +25,33 @@ The service can now do three important things at the same time:
 - let the browser act as a lightweight manual clipboard client
 - run as a long-lived self-hosted service with automatic retention controls
 
+At this point, the project is already usable as a self-hosted clipboard server
+for:
+
+- text, link, image, and small file history
+- device pairing with long-lived device tokens
+- favorites, categories, and retention policy
+- embedded Web UI management
+- manual WebDAV sync preview
+
 Deployment is still intentionally simple:
 
 - one server binary
 - one `config.yaml`
 - one `data/` directory
 
+This phase adds:
+
+- local multi-platform release builds through `scripts/build-release.sh`
+- GitHub Actions release automation
+- Docker and Docker Compose examples
+- `systemd`, `launchd`, Windows NSSM, and OpenWrt service examples
+- Homebrew Tap and Scoop manifest templates
+- manual WebDAV sync preview with persisted settings and sync status
+
 ## Progress So Far
 
-Delivered through phase 7:
+Delivered through phase 9:
 
 - `go run ./cmd/server -config config.yaml` starts the HTTP server
 - `internal/config` loads and validates YAML config
@@ -35,14 +61,21 @@ Delivered through phase 7:
 - one-time pairing codes can mint long-lived `device_token` values
 - device tokens can call clipboard APIs
 - `POST /api/clipboard/text` stores text clipboard items
-- `GET /api/clipboard/latest` returns the newest text item
+- `POST /api/clipboard/link` stores one link clipboard item
+- `POST /api/clipboard/file` stores one image or file clipboard item through `multipart/form-data`
+- `GET /api/clipboard/latest` returns the newest clipboard item
 - `GET /api/clipboard/history` returns history ordered newest first
 - `GET /api/clipboard/items/{id}` returns one record
+- `GET /api/clipboard/items/{id}/file` streams one stored image or file back to the client
 - `DELETE /api/clipboard/items/{id}` soft-deletes one record
 - `POST /api/clipboard/items/{id}/favorite` favorites one record
 - `DELETE /api/clipboard/items/{id}/favorite` removes one favorite
 - `GET /api/favorites` returns favorite clipboard items
 - built-in categories `text`, `image`, `link`, and `file` are seeded automatically
+- history can now distinguish and return `text`, `image`, `link`, and `file` items
+- SQLite stores file metadata only; uploaded bytes stay on disk under the data directory
+- uploaded images can be previewed and downloaded through the existing item API
+- uploaded files are streamed to disk while computing SHA-256 and MIME type
 - `GET /api/categories` lists built-in and custom categories
 - `POST /api/categories` creates one custom category
 - `PATCH /api/clipboard/items/{id}/category` updates one item's category
@@ -52,6 +85,10 @@ Delivered through phase 7:
 - `GET /api/admin/storage/status` returns current storage usage
 - `GET /api/settings/cleanup` returns the persisted cleanup policy
 - `PATCH /api/settings/cleanup` updates the cleanup policy without restarting the server
+- `GET /api/settings` returns the combined runtime settings and startup-only settings
+- `PATCH /api/settings` can change the admin token at runtime
+- `GET /api/settings/limits` returns the persisted runtime upload limits
+- `PATCH /api/settings/limits` updates text, image, file, link, and request size limits without restart
 - cleanup policy is stored in the `settings` table and reloaded after restart
 - favorites are skipped by automatic cleanup
 - the background cleaner can enforce TTL, max history count, and max total storage size
@@ -63,13 +100,36 @@ Delivered through phase 7:
 - the Web UI can read server latest, copy latest into the browser clipboard, and refresh latest manually
 - the Web UI can show history, favorites, devices, pairing codes, cleanup status, and cleanup policy
 
+Delivered in phase 10:
+
+- `go build ./cmd/server` produces the standalone server binary
+- `scripts/build-release.sh` cross-builds the planned release targets into `dist/`
+- `.github/workflows/release.yml` runs tests and publishes tagged release assets
+- `Dockerfile` packages the server as a single-container service
+- `docker-compose.example.yml` provides a one-command local container example
+- `deploy/systemd/clipbridge-server.service` provides a Linux boot-time service example
+- `deploy/launchd/com.cinmou.clipbridge-server.plist` provides a macOS auto-start example
+- `deploy/windows/nssm-install.ps1` provides a Windows long-running service example
+- `deploy/openwrt/clipbridge-server.init` provides an OpenWrt init script example
+- `deploy/homebrew/clipbridge-server.rb` and `deploy/scoop/clipbridge-server.json` provide package manager templates for later publishing
+
+Delivered in phase 11:
+
+- `GET /api/settings/webdav` and `PATCH /api/settings/webdav` persist WebDAV backend settings
+- `POST /api/admin/webdav/test` validates the stored WebDAV connection settings
+- `POST /api/admin/webdav/sync` runs one manual WebDAV sync pass
+- `GET /api/admin/webdav/status` returns the latest test and sync status
+- clipboard items now get a deterministic sync key for import/export deduplication
+- WebDAV sync pushes `manifest.json`, `items/*.json`, and `files/*.bin`
+- remote text, image, link, and file items can be imported back into local history
+- the embedded Web UI can configure WebDAV, test the connection, and trigger sync
+
 Not implemented yet:
 
-- image clipboard upload and download
-- file clipboard upload and download
 - automatic desktop or mobile background clipboard watching
-- WebDAV sync
+- automatic background WebDAV sync
 - browser session login flow separate from bearer tokens
+- deep conflict resolution across multiple writers
 
 ## Quick Start
 
@@ -106,6 +166,21 @@ http://127.0.0.1:8787/
 After startup, the server will create:
 
 - `data/clipbridge.db`
+
+## Deployment
+
+The shortest path for normal users is now:
+
+1. download the matching binary from GitHub Releases
+2. place it beside `config.yaml`
+3. create an empty `data/` directory
+4. run `./clipbridge-server -config ./config.yaml`
+
+For packaged deployment examples, see:
+
+- `docs/deployment.md`
+- `docs/deployment.zh-CN.md`
+- `README.zh-CN.md`
 
 ## How To Use
 
@@ -158,6 +233,34 @@ Filter by category:
 ```bash
 curl -H 'Authorization: Bearer dev-token-123' \
   'http://127.0.0.1:8787/api/clipboard/history?category=text'
+```
+
+### 3.5. Upload Links And Files
+
+Upload a link:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/clipboard/link \
+  -H 'Authorization: Bearer dev-token-123' \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com","source_device_id":"web-ui","source_device_name":"Web UI"}'
+```
+
+Upload an image or file:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/clipboard/file \
+  -H 'Authorization: Bearer dev-token-123' \
+  -F 'file=@./demo.png' \
+  -F 'source_device_id=web-ui' \
+  -F 'source_device_name=Web UI'
+```
+
+Download one stored file:
+
+```bash
+curl -L -H 'Authorization: Bearer dev-token-123' \
+  http://127.0.0.1:8787/api/clipboard/items/1/file
 ```
 
 ### 4. Favorite Important Records
@@ -254,17 +357,70 @@ curl -X POST http://127.0.0.1:8787/api/admin/cleanup/run \
   -H 'Authorization: Bearer dev-token-123'
 ```
 
+### 8. Change Runtime Limits And Token
+
+Read combined settings:
+
+```bash
+curl -H 'Authorization: Bearer dev-token-123' \
+  http://127.0.0.1:8787/api/settings
+```
+
+Change the admin token:
+
+```bash
+curl -X PATCH http://127.0.0.1:8787/api/settings \
+  -H 'Authorization: Bearer dev-token-123' \
+  -H 'Content-Type: application/json' \
+  -d '{"admin_token":"new-admin-token"}'
+```
+
+Update runtime limits:
+
+```bash
+curl -X PATCH http://127.0.0.1:8787/api/settings/limits \
+  -H 'Authorization: Bearer new-admin-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"min_text_bytes":1,"max_text_bytes":262144,"min_image_bytes":1,"max_image_bytes":10485760,"min_file_bytes":1,"max_file_bytes":52428800,"min_link_bytes":1,"max_link_bytes":8192,"max_request_bytes":62914560}'
+```
+
+### 9. Preview WebDAV Sync
+
+Save WebDAV settings:
+
+```bash
+curl -X PATCH http://127.0.0.1:8787/api/settings/webdav \
+  -H 'Authorization: Bearer new-admin-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"enabled":true,"url":"https://dav.example.com/remote.php/dav/files/user","username":"demo","password":"secret","base_path":"ClipBridgeServer"}'
+```
+
+Test the connection:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/admin/webdav/test \
+  -H 'Authorization: Bearer new-admin-token'
+```
+
+Run one manual sync:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/admin/webdav/sync \
+  -H 'Authorization: Bearer new-admin-token'
+```
+
 ## Web UI Usage
 
 Open `http://127.0.0.1:8787/` and:
 
 1. paste either the admin token or a device token into the token box
 2. press `Save`
-3. use `Quick Clipboard` to type text and upload it into the shared clipboard stack
-4. use `Copy Server Latest` to write the current server latest text into the browser clipboard
-5. use `Favorites` and `Clipboard History` to organize records
-6. use `Retention Status` and `Cleanup Policy` with the admin token when operating the server long-term
-7. use `Pair Devices` and `Paired Devices` with the admin token when onboarding clients
+3. use `Quick Clipboard` to upload text, links, images, and small files
+4. use `Copy Latest` to write the current server text or link into the browser clipboard
+5. use `Favorites` and `Clipboard History` to organize mixed item types
+6. use `Runtime Settings`, `Limits`, `Retention Status`, and `Cleanup Policy` with the admin token when operating the server long-term
+7. use `WebDAV Sync` to save credentials, test the connection, and run one manual sync
+8. use `Pair Devices` and `Paired Devices` with the admin token when onboarding clients
 
 Notes:
 
@@ -290,8 +446,11 @@ The current retention rules are:
 - `internal/config/defaults.go`: default config values for the current stage
 - `internal/auth/middleware.go`: bearer token parsing, pairing code generation, and secret hashing helpers
 - `internal/cleanup/service.go`: background cleaner, manual cleanup runner, and cleanup status assembly
+- `internal/webdav/service.go`: persisted WebDAV settings, connection test, manual sync, remote manifest handling, and import/export logic
 - `internal/store/sqlite.go`: SQLite connection lifecycle plus clipboard, favorites, categories, settings, and cleanup storage methods
 - `internal/store/settings.go`: cleanup policy validation helpers
+- `internal/store/sync_items.go`: import path for clipboard items pulled back from WebDAV
+- `internal/store/webdav_settings.go`: persisted WebDAV settings and sync status storage helpers
 - `internal/store/device_pairing.go`: pairing code, device token, device list, and device revoke storage logic
 - `internal/store/migrations.go`: migration runner and embedded SQL migration loading
 - `internal/store/sqlite_test.go`: regression test for database and table creation
@@ -305,7 +464,10 @@ The current retention rules are:
 - `internal/api/health_handler.go`: health check handler
 - `internal/api/auth_handler.go`: pairing code and device management handlers
 - `internal/api/clipboard_handler.go`: clipboard, favorites, and category HTTP handlers
+- `internal/api/media_handler.go`: image, file, link, and download HTTP handlers
 - `internal/api/cleanup_handler.go`: manual cleanup, storage status, and cleanup settings handlers
+- `internal/api/settings_handler.go`: runtime settings and limits handlers
+- `internal/api/webdav_handler.go`: WebDAV settings, test, sync, and status handlers
 - `internal/api/response.go`: shared success and error response helpers
 - `internal/api/clipboard_handler_test.go`: HTTP-level tests for auth, pairing, quick clipboard, favorites, categories, and cleanup flows
 - `web/embedded.go`: `go:embed` entrypoint for the built frontend bundle
@@ -316,6 +478,9 @@ The current retention rules are:
 - `docs/api.md`: HTTP API reference for the current phase
 - `docs/config.md`: active config keys used by the implementation
 - `docs/roadmap.md`: staged build plan for later phases
+- `docs/deployment.md`: English deployment guide for binary, Docker, and service installs
+- `docs/deployment.zh-CN.md`: 中文部署说明，方便直接给中文用户查看
+- `docs/webdav-sync.md`: WebDAV sync preview scope, layout, and workflow
 - `CHANGELOG.md`: phase-by-phase change record
 
 ## Notes

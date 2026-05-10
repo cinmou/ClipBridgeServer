@@ -3,6 +3,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,15 +33,21 @@ type itemCategoryRequest struct {
 }
 
 type clipboardItemResponse struct {
-	ID         int64  `json:"id"`
-	Type       string `json:"type"`
-	Text       string `json:"text"`
-	IsFavorite bool   `json:"is_favorite"`
-	Category   string `json:"category"`
-	SourceID   string `json:"source_device_id,omitempty"`
-	SourceName string `json:"source_device_name,omitempty"`
-	CreatedAt  string `json:"created_at"`
-	UpdatedAt  string `json:"updated_at"`
+	ID          int64  `json:"id"`
+	Type        string `json:"type"`
+	Text        string `json:"text"`
+	IsFavorite  bool   `json:"is_favorite"`
+	Category    string `json:"category"`
+	SourceID    string `json:"source_device_id,omitempty"`
+	SourceName  string `json:"source_device_name,omitempty"`
+	Filename    string `json:"filename,omitempty"`
+	MIMEType    string `json:"mime_type,omitempty"`
+	SHA256      string `json:"sha256,omitempty"`
+	URL         string `json:"url,omitempty"`
+	DownloadURL string `json:"download_url,omitempty"`
+	PreviewURL  string `json:"preview_url,omitempty"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 type clipboardHistoryResponse struct {
@@ -81,7 +88,7 @@ func (r *Router) handleClipboardText(w http.ResponseWriter, req *http.Request) {
 		payload.Text = payload.Content
 	}
 
-	if err := r.validateText(payload.Text); err != nil {
+	if err := r.validateText(req.Context(), payload.Text); err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -113,13 +120,13 @@ func (r *Router) handleClipboardLatest(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	item, err := r.store.GetLatestTextItem(req.Context())
+	item, err := r.store.GetLatestClipboardItem(req.Context())
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			writeJSONError(w, http.StatusNotFound, "no text clipboard item found")
+			writeJSONError(w, http.StatusNotFound, "no clipboard item found")
 			return
 		}
-		writeJSONError(w, http.StatusInternalServerError, "load latest text clipboard item failed")
+		writeJSONError(w, http.StatusInternalServerError, "load latest clipboard item failed")
 		return
 	}
 
@@ -133,13 +140,13 @@ func (r *Router) handleClipboardHistory(w http.ResponseWriter, req *http.Request
 	}
 
 	categoryName := strings.TrimSpace(req.URL.Query().Get("category"))
-	items, err := r.store.ListTextHistory(req.Context(), categoryName)
+	items, err := r.store.ListClipboardHistory(req.Context(), categoryName)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			writeJSONError(w, http.StatusBadRequest, "category not found")
 			return
 		}
-		writeJSONError(w, http.StatusInternalServerError, "load text clipboard history failed")
+		writeJSONError(w, http.StatusInternalServerError, "load clipboard history failed")
 		return
 	}
 
@@ -165,6 +172,8 @@ func (r *Router) handleClipboardItemRoutes(w http.ResponseWriter, req *http.Requ
 		r.handleClipboardItemFavorite(w, req, id)
 	case "category":
 		r.handleClipboardItemCategory(w, req, id)
+	case "file":
+		r.handleClipboardItemFile(w, req, id)
 	default:
 		writeJSONError(w, http.StatusNotFound, "clipboard item not found")
 	}
@@ -173,24 +182,24 @@ func (r *Router) handleClipboardItemRoutes(w http.ResponseWriter, req *http.Requ
 func (r *Router) handleClipboardItemByID(w http.ResponseWriter, req *http.Request, id int64) {
 	switch req.Method {
 	case http.MethodGet:
-		item, err := r.store.GetTextItemByID(req.Context(), id)
+		item, err := r.store.GetClipboardItemByID(req.Context(), id)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
-				writeJSONError(w, http.StatusNotFound, "text clipboard item not found")
+				writeJSONError(w, http.StatusNotFound, "clipboard item not found")
 				return
 			}
-			writeJSONError(w, http.StatusInternalServerError, "load text clipboard item failed")
+			writeJSONError(w, http.StatusInternalServerError, "load clipboard item failed")
 			return
 		}
 
 		writeJSONData(w, http.StatusOK, toClipboardItemResponse(item))
 	case http.MethodDelete:
-		if err := r.store.DeleteTextItem(req.Context(), id); err != nil {
+		if err := r.store.DeleteClipboardItem(req.Context(), id); err != nil {
 			if errors.Is(err, store.ErrNotFound) {
-				writeJSONError(w, http.StatusNotFound, "text clipboard item not found")
+				writeJSONError(w, http.StatusNotFound, "clipboard item not found")
 				return
 			}
-			writeJSONError(w, http.StatusInternalServerError, "delete text clipboard item failed")
+			writeJSONError(w, http.StatusInternalServerError, "delete clipboard item failed")
 			return
 		}
 
@@ -219,10 +228,10 @@ func (r *Router) handleClipboardItemFavorite(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	item, err := r.store.SetFavorite(req.Context(), id, favorite)
+	item, err := r.store.SetClipboardItemFavorite(req.Context(), id, favorite)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			writeJSONError(w, http.StatusNotFound, "text clipboard item not found")
+			writeJSONError(w, http.StatusNotFound, "clipboard item not found")
 			return
 		}
 		writeJSONError(w, http.StatusInternalServerError, "update favorite state failed")
@@ -336,13 +345,13 @@ func (r *Router) handleClipboardItemCategory(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	item, err := r.store.SetItemCategory(req.Context(), id, categoryName)
+	item, err := r.store.SetClipboardItemCategory(req.Context(), id, categoryName)
 	if err != nil {
 		switch {
 		case errors.Is(err, store.ErrNotFound) && strings.Contains(err.Error(), "category"):
 			writeJSONError(w, http.StatusBadRequest, "category not found")
 		case errors.Is(err, store.ErrNotFound):
-			writeJSONError(w, http.StatusNotFound, "text clipboard item not found")
+			writeJSONError(w, http.StatusNotFound, "clipboard item not found")
 		default:
 			writeJSONError(w, http.StatusInternalServerError, "update item category failed")
 		}
@@ -352,18 +361,20 @@ func (r *Router) handleClipboardItemCategory(w http.ResponseWriter, req *http.Re
 	writeJSONData(w, http.StatusOK, toClipboardItemResponse(item))
 }
 
-func (r *Router) validateText(text string) error {
+func (r *Router) validateText(ctx context.Context, text string) error {
+	limits := r.currentLimits(ctx)
+
 	if !utf8.ValidString(text) {
 		return fmt.Errorf("text must be valid UTF-8")
 	}
 
 	textBytes := len([]byte(text))
-	if textBytes < r.config.Limits.MinTextBytes {
-		return fmt.Errorf("text must be at least %d bytes", r.config.Limits.MinTextBytes)
+	if textBytes < limits.MinTextBytes {
+		return fmt.Errorf("text must be at least %d bytes", limits.MinTextBytes)
 	}
 
-	if textBytes > r.config.Limits.MaxTextBytes {
-		return fmt.Errorf("text must be at most %d bytes", r.config.Limits.MaxTextBytes)
+	if textBytes > limits.MaxTextBytes {
+		return fmt.Errorf("text must be at most %d bytes", limits.MaxTextBytes)
 	}
 
 	return nil
@@ -410,16 +421,31 @@ func toClipboardItemResponses(items []store.ClipboardItem) []clipboardItemRespon
 }
 
 func toClipboardItemResponse(item *store.ClipboardItem) clipboardItemResponse {
+	downloadURL := ""
+	previewURL := ""
+	if item.ItemType == "image" || item.ItemType == "file" {
+		downloadURL = fmt.Sprintf("/api/clipboard/items/%d/file", item.ID)
+		if item.ItemType == "image" {
+			previewURL = downloadURL
+		}
+	}
+
 	return clipboardItemResponse{
-		ID:         item.ID,
-		Type:       item.ItemType,
-		Text:       item.TextContent,
-		IsFavorite: item.IsFavorite,
-		Category:   item.Category,
-		SourceID:   item.SourceDeviceID,
-		SourceName: item.SourceDeviceName,
-		CreatedAt:  item.CreatedAt,
-		UpdatedAt:  item.UpdatedAt,
+		ID:          item.ID,
+		Type:        item.ItemType,
+		Text:        item.TextContent,
+		IsFavorite:  item.IsFavorite,
+		Category:    item.Category,
+		SourceID:    item.SourceDeviceID,
+		SourceName:  item.SourceDeviceName,
+		Filename:    item.Filename,
+		MIMEType:    item.MIMEType,
+		SHA256:      item.SHA256,
+		URL:         item.TextContent,
+		DownloadURL: downloadURL,
+		PreviewURL:  previewURL,
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}
 }
 

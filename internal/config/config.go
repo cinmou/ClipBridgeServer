@@ -43,6 +43,12 @@ type StorageConfig struct {
 type LimitsConfig struct {
 	MinTextBytes    int `yaml:"min_text_bytes"`
 	MaxTextBytes    int `yaml:"max_text_bytes"`
+	MinImageBytes   int `yaml:"min_image_bytes"`
+	MaxImageBytes   int `yaml:"max_image_bytes"`
+	MinFileBytes    int `yaml:"min_file_bytes"`
+	MaxFileBytes    int `yaml:"max_file_bytes"`
+	MinLinkBytes    int `yaml:"min_link_bytes"`
+	MaxLinkBytes    int `yaml:"max_link_bytes"`
 	MaxRequestBytes int `yaml:"max_request_bytes"`
 }
 
@@ -120,8 +126,44 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("limits.max_request_bytes must be greater than 0")
 	}
 
+	if c.Limits.MinImageBytes < 0 {
+		return fmt.Errorf("limits.min_image_bytes must be greater than or equal to 0")
+	}
+
+	if c.Limits.MaxImageBytes <= 0 {
+		return fmt.Errorf("limits.max_image_bytes must be greater than 0")
+	}
+
+	if c.Limits.MinFileBytes < 0 {
+		return fmt.Errorf("limits.min_file_bytes must be greater than or equal to 0")
+	}
+
+	if c.Limits.MaxFileBytes <= 0 {
+		return fmt.Errorf("limits.max_file_bytes must be greater than 0")
+	}
+
+	if c.Limits.MinLinkBytes < 0 {
+		return fmt.Errorf("limits.min_link_bytes must be greater than or equal to 0")
+	}
+
+	if c.Limits.MaxLinkBytes <= 0 {
+		return fmt.Errorf("limits.max_link_bytes must be greater than 0")
+	}
+
 	if c.Limits.MinTextBytes > c.Limits.MaxTextBytes {
 		return fmt.Errorf("limits.min_text_bytes must not be greater than limits.max_text_bytes")
+	}
+
+	if c.Limits.MinImageBytes > c.Limits.MaxImageBytes {
+		return fmt.Errorf("limits.min_image_bytes must not be greater than limits.max_image_bytes")
+	}
+
+	if c.Limits.MinFileBytes > c.Limits.MaxFileBytes {
+		return fmt.Errorf("limits.min_file_bytes must not be greater than limits.max_file_bytes")
+	}
+
+	if c.Limits.MinLinkBytes > c.Limits.MaxLinkBytes {
+		return fmt.Errorf("limits.min_link_bytes must not be greater than limits.max_link_bytes")
 	}
 
 	if c.Cleaner.IntervalMinutes <= 0 {

@@ -13,6 +13,7 @@ import (
 	"github.com/cinmou/ClipBridgeServer/internal/cleanup"
 	"github.com/cinmou/ClipBridgeServer/internal/config"
 	"github.com/cinmou/ClipBridgeServer/internal/store"
+	"github.com/cinmou/ClipBridgeServer/internal/webdav"
 	webui "github.com/cinmou/ClipBridgeServer/web"
 )
 
@@ -44,7 +45,9 @@ func main() {
 	}
 	defer cleanupService.Close()
 
-	router := api.NewRouter(dbStore, cfg, cleanupService, webui.Handler())
+	webdavService := webdav.NewService(dbStore, cfg)
+
+	router := api.NewRouter(dbStore, cfg, cleanupService, webdavService, webui.Handler())
 	addr := cfg.Server.Address()
 
 	log.Printf("ClipBridgeServer starting on %s", addr)

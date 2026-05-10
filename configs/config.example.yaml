@@ -41,6 +41,24 @@ limits:
   # Maximum allowed text clipboard size in bytes.
   max_text_bytes: 262144
 
+  # Minimum allowed image clipboard size in bytes.
+  min_image_bytes: 1
+
+  # Maximum allowed image clipboard size in bytes.
+  max_image_bytes: 10485760
+
+  # Minimum allowed file clipboard size in bytes.
+  min_file_bytes: 1
+
+  # Maximum allowed file clipboard size in bytes.
+  max_file_bytes: 52428800
+
+  # Minimum allowed link clipboard size in bytes.
+  min_link_bytes: 1
+
+  # Maximum allowed link clipboard size in bytes.
+  max_link_bytes: 8192
+
   # Maximum allowed HTTP request body size in bytes.
   max_request_bytes: 1048576
 
@@ -50,3 +68,7 @@ cleaner:
 
   # How often the worker should wake up and reload policy.
   interval_minutes: 30
+
+# WebDAV settings are intentionally not stored here in phase 11.
+# They are runtime-persisted through the settings table so users can update
+# them from the embedded Web UI or the settings API without restarting.

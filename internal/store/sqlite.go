@@ -37,7 +37,11 @@ type ClipboardItem struct {
 	SourceDeviceID   string
 	SourceDeviceName string
 	LocalPath        string
+	Filename         string
+	MIMEType         string
+	SHA256           string
 	SizeBytes        int64
+	SyncKey          string
 	ExpiresAt        string
 	CreatedAt        string
 	UpdatedAt        string
@@ -113,7 +117,12 @@ type clipboardMetadata struct {
 	SourceDeviceID   string `json:"source_device_id,omitempty"`
 	SourceDeviceName string `json:"source_device_name,omitempty"`
 	LocalPath        string `json:"local_path,omitempty"`
+	Filename         string `json:"filename,omitempty"`
+	MIMEType         string `json:"mime_type,omitempty"`
+	SHA256           string `json:"sha256,omitempty"`
+	URL              string `json:"url,omitempty"`
 	SizeBytes        int64  `json:"size_bytes,omitempty"`
+	SyncKey          string `json:"sync_key,omitempty"`
 }
 
 const (
@@ -348,9 +357,8 @@ func (s *SQLiteStore) ListFavorites(ctx context.Context) ([]ClipboardItem, error
 	rows, err := s.db.QueryContext(
 		ctx,
 		baseClipboardItemSelect+`
-		WHERE ci.item_type = ? AND ci.deleted_at IS NULL AND ci.is_favorite = 1
+		WHERE ci.deleted_at IS NULL AND ci.is_favorite = 1
 		ORDER BY ci.id DESC`,
-		"text",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list favorites: %w", err)
@@ -710,6 +718,10 @@ func scanClipboardItem(scanner interface {
 	item.SourceDeviceID = metadata.SourceDeviceID
 	item.SourceDeviceName = metadata.SourceDeviceName
 	item.LocalPath = metadata.LocalPath
+	item.Filename = metadata.Filename
+	item.MIMEType = metadata.MIMEType
+	item.SHA256 = metadata.SHA256
+	item.SyncKey = metadata.SyncKey
 
 	return item, nil
 }
