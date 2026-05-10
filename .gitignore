@@ -35,5 +35,6 @@ todo.md
 .gocache/
 data/*.db
 dist/
+debug/
 internal/api/data/
 .DS_Store
