@@ -13,6 +13,17 @@
 - English: `README.md`
 - 简体中文: `README.zh-CN.md`
 
+## Beta 1
+
+这份 README 现在作为 ClipBridgeServer 第一个正式 Beta 版入口文档。
+
+这里说的 Beta 1，意思是：
+
+- 服务端已经可以真实拿来试用
+- 单二进制部署路径已经比较稳定
+- 内置 Web UI 已经能承担日常管理工作
+- 但仍然有一部分能力处于预览版或尚未交付状态
+
 ## 当前进度
 
 当前已经推进到第 11 阶段：
@@ -38,6 +49,18 @@
 - WebDAV 后台自动同步
 - 更复杂的多端冲突合并
 - 独立于 Bearer Token 的浏览器登录会话
+
+## 后面要做什么
+
+这个 Beta 之后，主线工作大致会放在这些方向：
+
+- 桌面客户端后台监听本机剪贴板
+- Windows / Linux 托盘与 macOS 菜单栏常驻
+- WebDAV 从手动同步升级到后台自动同步
+- 更清楚的同步日志和更稳的冲突处理
+- 可选端到端加密，避免服务端看到明文剪贴板
+- 更完善的浏览器和客户端登录流程
+- 更适合长期自托管的导入导出与备份能力
 
 ## 快速开始
 
@@ -285,6 +308,51 @@ curl -X POST http://127.0.0.1:8787/api/admin/webdav/sync \
 
 - `docs/deployment.md`
 - `docs/deployment.zh-CN.md`
+
+## 我怎么构建版本
+
+如果你只是想在当前机器构建一个可运行二进制：
+
+```bash
+go build -o clipbridge-server ./cmd/server
+```
+
+如果你想直接构建这一版 Beta 的多平台发布产物：
+
+```bash
+bash scripts/build-release.sh
+```
+
+构建完成后，产物会出现在 `dist/` 目录：
+
+- `clipbridge-server-linux-amd64`
+- `clipbridge-server-linux-arm64`
+- `clipbridge-server-darwin-amd64`
+- `clipbridge-server-darwin-arm64`
+- `clipbridge-server-windows-amd64.exe`
+
+推荐你本地按这个顺序做：
+
+1. 先跑测试：
+
+```bash
+env GOCACHE=$(pwd)/.gocache go test ./...
+```
+
+2. 再构建发布产物：
+
+```bash
+bash scripts/build-release.sh
+```
+
+3. 打开 `dist/`，按目标平台取对应二进制。
+
+如果你想走 GitHub Releases 的自动构建流程：
+
+1. 提交代码
+2. 打一个版本标签，比如 `v0.11.0-beta1`
+3. 推送这个标签
+4. 让 `.github/workflows/release.yml` 自动测试、自动构建、自动上传产物
 
 ## 更多文档
 

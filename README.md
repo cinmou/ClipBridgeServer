@@ -9,6 +9,18 @@ Language:
 - English: `README.md`
 - 简体中文: `README.zh-CN.md`
 
+## Beta 1
+
+This README now serves as the first formal Beta document for
+ClipBridgeServer.
+
+Beta 1 means:
+
+- the server is already usable as a self-hosted clipboard hub
+- the deployment model is stable enough for normal users to try
+- the embedded Web UI is good enough for daily management
+- some important future work is still intentionally marked as preview or not yet shipped
+
 ## Current Stage
 
 This repository is currently in phase 11, with WebDAV sync preview now added on
@@ -131,6 +143,18 @@ Not implemented yet:
 - browser session login flow separate from bearer tokens
 - deep conflict resolution across multiple writers
 
+## What Comes Next
+
+The main work planned after this Beta is:
+
+- desktop clients that can watch the local clipboard in the background
+- tray or menu bar resident mode for Windows, Linux, and macOS
+- automatic background WebDAV sync instead of manual sync only
+- stronger sync conflict handling and clearer sync logs
+- optional end-to-end encryption so the server cannot read clipboard contents
+- richer browser and client login flows beyond raw bearer tokens
+- better import and export tooling for long-term self-hosted backups
+
 ## Quick Start
 
 1. Copy the example config:
@@ -181,6 +205,42 @@ For packaged deployment examples, see:
 - `docs/deployment.md`
 - `docs/deployment.zh-CN.md`
 - `README.zh-CN.md`
+
+## Build A Release
+
+If you just want one binary for your current machine:
+
+```bash
+go build -o clipbridge-server ./cmd/server
+```
+
+If you want the full Beta release set:
+
+```bash
+bash scripts/build-release.sh
+```
+
+That writes these files into `dist/`:
+
+- `clipbridge-server-linux-amd64`
+- `clipbridge-server-linux-arm64`
+- `clipbridge-server-darwin-amd64`
+- `clipbridge-server-darwin-arm64`
+- `clipbridge-server-windows-amd64.exe`
+
+Recommended local release flow:
+
+1. run `env GOCACHE=$(pwd)/.gocache go test ./...`
+2. run `bash scripts/build-release.sh`
+3. open `dist/`
+4. pick the binary that matches the target platform
+
+If you want GitHub Releases assets instead of local files:
+
+1. commit your changes
+2. create a version tag such as `v0.11.0-beta1`
+3. push the tag
+4. let `.github/workflows/release.yml` build and upload the artifacts
 
 ## How To Use
 

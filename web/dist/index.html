@@ -9,185 +9,354 @@
   <body>
     <div class="background-glow"></div>
     <main class="app-shell">
-      <section class="hero-card">
-        <div>
-          <p class="eyebrow">Phase 11 Runtime Console</p>
-          <h1>ClipBridge Console</h1>
+      <header class="hero-card">
+        <div class="hero-copy-block">
+          <p class="eyebrow">ClipBridgeServer Beta 1</p>
+          <h1>ClipBridge</h1>
           <p class="hero-copy">
-            Upload text, links, images, and files into the clipboard stack, organize history,
-            adjust runtime policy, and preview self-hosted WebDAV sync from the same embedded Web UI.
+            A self-hosted clipboard workspace for quick capture, history
+            management, device pairing, and WebDAV sync preview.
           </p>
         </div>
         <div class="token-panel">
           <label for="token-input">API Token</label>
           <div class="token-row">
             <input id="token-input" type="password" placeholder="Paste admin or device token" />
-            <button id="save-token-button" type="button">Save</button>
+            <button id="save-token-button" type="button">Save Token</button>
           </div>
           <div class="token-actions">
             <button id="clear-token-button" type="button" class="secondary">Clear</button>
             <span id="token-status" class="muted">No token saved yet.</span>
           </div>
         </div>
+      </header>
+
+      <nav class="page-nav" aria-label="Primary">
+        <button type="button" class="nav-pill active" data-page-target="home">Home</button>
+        <button type="button" class="nav-pill" data-page-target="history">History</button>
+        <button type="button" class="nav-pill" data-page-target="favorites">Favorites</button>
+        <button type="button" class="nav-pill" data-page-target="devices">Devices</button>
+        <button type="button" class="nav-pill" data-page-target="settings">Settings</button>
+        <button type="button" class="nav-pill" data-page-target="webdav">WebDAV <span class="nav-badge">Preview</span></button>
+      </nav>
+
+      <section class="page active" data-page="home">
+        <div class="home-grid">
+          <article class="panel status-overview-panel">
+            <div class="panel-head">
+              <h2>Service Overview</h2>
+              <button id="refresh-home-button" type="button" class="secondary">Refresh</button>
+            </div>
+            <div class="status-grid">
+              <div class="status-tile">
+                <span class="mini-label">Status</span>
+                <div id="health-state" class="status-chip">Checking...</div>
+              </div>
+              <div class="status-tile">
+                <span class="mini-label">Server URL</span>
+                <strong id="server-origin">-</strong>
+              </div>
+              <div class="status-tile">
+                <span class="mini-label">Connected Devices</span>
+                <strong id="connected-devices-count">-</strong>
+              </div>
+              <div class="status-tile">
+                <span class="mini-label">Storage Used</span>
+                <strong id="storage-total-bytes">-</strong>
+              </div>
+            </div>
+            <div class="hint-card">
+              <span class="mini-label">Start Here</span>
+              <p id="home-guide" class="muted">
+                Save a token, upload your first clipboard item, then open History to manage it.
+              </p>
+            </div>
+          </article>
+
+          <article class="panel quick-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Quick Clipboard</h2>
+                <p class="muted">
+                  Capture one text, link, or file item quickly. Category suggestions are lightweight
+                  and can be changed before upload.
+                </p>
+              </div>
+            </div>
+
+            <div class="segmented-control" role="tablist" aria-label="Clipboard input mode">
+              <button id="tab-text-button" type="button" class="segment active" data-quick-tab="text">Text</button>
+              <button id="tab-link-button" type="button" class="segment" data-quick-tab="link">Link</button>
+              <button id="tab-file-button" type="button" class="segment" data-quick-tab="file">File</button>
+            </div>
+
+            <section class="quick-tab active" data-quick-panel="text">
+              <div class="field-stack">
+                <label for="quick-clipboard-input">Text</label>
+                <textarea id="quick-clipboard-input" rows="6" placeholder="Type or paste text here."></textarea>
+              </div>
+              <div class="action-row">
+                <button id="upload-quick-button" type="button">Upload Text</button>
+              </div>
+            </section>
+
+            <section class="quick-tab" data-quick-panel="link">
+              <div class="field-stack">
+                <label for="quick-link-input">URL</label>
+                <input id="quick-link-input" type="url" placeholder="https://example.com" />
+              </div>
+              <div class="suggestion-block">
+                <div class="suggestion-row">
+                  <span class="mini-label">Suggested Category</span>
+                  <select id="quick-link-category"></select>
+                </div>
+                <div>
+                  <span class="mini-label">Predicted Tags</span>
+                  <div id="quick-link-tags" class="tag-list"></div>
+                </div>
+              </div>
+              <div class="action-row">
+                <button id="upload-link-button" type="button">Upload Link</button>
+              </div>
+            </section>
+
+            <section class="quick-tab" data-quick-panel="file">
+              <div class="field-stack">
+                <label for="quick-file-input">Image or File</label>
+                <input id="quick-file-input" type="file" />
+              </div>
+              <div id="quick-file-preview" class="file-preview hidden"></div>
+              <div class="suggestion-block">
+                <div class="suggestion-row">
+                  <span class="mini-label">Suggested Category</span>
+                  <select id="quick-file-category"></select>
+                </div>
+                <div>
+                  <span class="mini-label">Predicted Tags</span>
+                  <div id="quick-file-tags" class="tag-list"></div>
+                </div>
+              </div>
+              <div class="action-row">
+                <button id="upload-file-button" type="button">Upload File</button>
+              </div>
+            </section>
+          </article>
+
+          <article class="panel latest-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Latest Item</h2>
+                <p class="muted">A quick preview of the newest item stored on the server.</p>
+              </div>
+              <button id="refresh-latest-button" type="button" class="secondary">Refresh</button>
+            </div>
+            <p id="latest-empty" class="muted empty-paragraph">
+              Save an admin token or device token to load clipboard data.
+            </p>
+            <div id="latest-card" class="clipboard-card hidden">
+              <div class="latest-head">
+                <div class="clipboard-tags">
+                  <span id="latest-type" class="tag">text</span>
+                  <span id="latest-category" class="tag tag-accent">text</span>
+                </div>
+                <div class="latest-meta">
+                  <span id="latest-created">-</span>
+                  <span id="latest-source-name">-</span>
+                </div>
+              </div>
+              <div id="latest-content" class="latest-content"></div>
+              <div id="latest-actions" class="action-row"></div>
+            </div>
+          </article>
+        </div>
       </section>
 
-      <section class="grid-layout">
-        <article class="panel quick-panel">
+      <section class="page" data-page="history">
+        <article class="panel full-page-panel">
           <div class="panel-head">
-            <h2>Quick Clipboard</h2>
-            <div class="panel-actions">
-              <button id="refresh-latest-button" type="button" class="secondary">Refresh Latest</button>
-              <button id="copy-latest-button" type="button" class="secondary">Copy Latest</button>
+            <div>
+              <h2>History</h2>
+              <p class="muted">Search, filter, favorite, delete, copy, download, and change categories here.</p>
             </div>
+            <button id="refresh-history-button" type="button" class="secondary">Refresh</button>
           </div>
-          <div class="field-stack">
-            <label for="quick-clipboard-input">Text</label>
-            <textarea id="quick-clipboard-input" rows="4" placeholder="Type or paste text here."></textarea>
-            <button id="upload-quick-button" type="button">Upload Text</button>
+          <div class="filters-grid">
+            <label class="field-stack">
+              <span>Search</span>
+              <input id="history-search-input" type="search" placeholder="Search text, links, filenames, or source" />
+            </label>
+            <label class="field-stack">
+              <span>Type</span>
+              <select id="history-type-filter">
+                <option value="">All types</option>
+                <option value="text">Text</option>
+                <option value="link">Link</option>
+                <option value="image">Image</option>
+                <option value="file">File</option>
+              </select>
+            </label>
+            <label class="field-stack">
+              <span>Category</span>
+              <select id="history-category-filter"></select>
+            </label>
+            <label class="checkbox-row history-toggle">
+              <input id="history-favorites-only" type="checkbox" />
+              Favorites only
+            </label>
           </div>
-          <div class="field-stack">
-            <label for="quick-link-input">Link</label>
-            <div class="inline-row">
-              <input id="quick-link-input" type="url" placeholder="https://example.com" />
-              <button id="upload-link-button" type="button" class="secondary">Upload Link</button>
-            </div>
-          </div>
-          <div class="field-stack">
-            <label for="quick-file-input">Image Or File</label>
-            <div class="inline-row">
-              <input id="quick-file-input" type="file" />
-              <button id="upload-file-button" type="button" class="secondary">Upload File</button>
-            </div>
-          </div>
-          <div class="quick-latest">
-            <span class="mini-label">Latest From Server</span>
-            <p id="latest-empty" class="muted">No clipboard item loaded yet.</p>
-            <div id="latest-card" class="clipboard-card hidden">
-              <div class="clipboard-meta">
-                <span id="latest-id"></span>
-                <span id="latest-created"></span>
+          <div class="history-page-layout">
+            <div class="field-stack category-create-card">
+              <label for="new-category-input">Create Category</label>
+              <div class="inline-row">
+                <input id="new-category-input" type="text" placeholder="e.g. work" />
+                <button id="create-category-button" type="button" class="secondary">Add</button>
               </div>
-              <div class="clipboard-tags">
-                <span id="latest-type" class="tag">text</span>
-                <span id="latest-category" class="tag tag-accent">-</span>
-                <span id="latest-favorite" class="tag tag-favorite">Normal</span>
+            </div>
+            <ul id="history-list" class="history-list"></ul>
+          </div>
+        </article>
+      </section>
+
+      <section class="page" data-page="favorites">
+        <article class="panel full-page-panel">
+          <div class="panel-head">
+            <div>
+              <h2>Favorites</h2>
+              <p class="muted">Pinned items that are kept out of automatic cleanup.</p>
+            </div>
+            <button id="refresh-favorites-button" type="button" class="secondary">Refresh</button>
+          </div>
+          <ul id="favorites-list" class="history-list"></ul>
+        </article>
+      </section>
+
+      <section class="page" data-page="devices">
+        <div class="two-column-grid">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Pair Devices</h2>
+                <p class="muted">Generate a short-lived one-time code for onboarding another client.</p>
               </div>
-              <div id="latest-content"></div>
-              <div class="muted latest-source">From: <span id="latest-source-name">-</span></div>
+              <button id="generate-pairing-button" type="button">Generate Code</button>
+            </div>
+            <div id="pairing-output" class="pairing-output hidden">
+              <div><span class="mini-label">Pairing Code</span><strong id="pairing-code-value">-</strong></div>
+              <div><span class="mini-label">Expires</span><strong id="pairing-code-expiry">-</strong></div>
+              <div><span class="mini-label">Pairing URI</span><code id="pairing-code-uri">-</code></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Connected Devices</h2>
+                <p class="muted">Revoke a device here if it should no longer access clipboard APIs.</p>
+              </div>
+              <button id="refresh-devices-button" type="button" class="secondary">Refresh</button>
+            </div>
+            <ul id="devices-list" class="devices-list"></ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" data-page="settings">
+        <div class="settings-grid-wide">
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Runtime Settings</h2>
+              <button id="save-admin-token-button" type="button">Save Token</button>
+            </div>
+            <div class="field-stack">
+              <label for="admin-token-input">Admin Token</label>
+              <input id="admin-token-input" type="password" placeholder="Change management token" />
+            </div>
+            <details class="details-block">
+              <summary>Advanced startup settings</summary>
+              <div id="startup-settings" class="settings-summary muted"></div>
+            </details>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Limits</h2>
+              <button id="save-limits-button" type="button">Save Limits</button>
+            </div>
+            <div class="settings-grid">
+              <label>Text Min<input id="limit-min-text" type="number" min="0" /></label>
+              <label>Text Max<input id="limit-max-text" type="number" min="1" /></label>
+              <label>Image Min<input id="limit-min-image" type="number" min="0" /></label>
+              <label>Image Max<input id="limit-max-image" type="number" min="1" /></label>
+              <label>File Min<input id="limit-min-file" type="number" min="0" /></label>
+              <label>File Max<input id="limit-max-file" type="number" min="1" /></label>
+              <label>Link Min<input id="limit-min-link" type="number" min="0" /></label>
+              <label>Link Max<input id="limit-max-link" type="number" min="1" /></label>
+              <label>Request Max<input id="limit-max-request" type="number" min="1" /></label>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Retention Status</h2>
+                <p class="muted">A quick view of active history, favorites, and storage pressure.</p>
+              </div>
               <div class="panel-actions">
-                <button id="toggle-latest-favorite-button" type="button" class="secondary">Favorite</button>
-                <button id="delete-latest-button" type="button" class="danger">Delete</button>
-              </div>
-              <div class="category-row">
-                <label for="latest-category-select">Category</label>
-                <select id="latest-category-select"></select>
-                <button id="save-latest-category-button" type="button" class="secondary">Update Category</button>
+                <button id="refresh-cleanup-button" type="button" class="secondary">Refresh</button>
+                <button id="run-cleanup-button" type="button">Run Cleanup</button>
               </div>
             </div>
-          </div>
-        </article>
+            <dl class="meta-grid">
+              <div><dt>History Items</dt><dd id="settings-history-count">-</dd></div>
+              <div><dt>Favorites</dt><dd id="settings-favorite-count">-</dd></div>
+              <div><dt>Total Bytes</dt><dd id="settings-total-bytes">-</dd></div>
+              <div><dt>File Bytes</dt><dd id="settings-file-bytes">-</dd></div>
+              <div><dt>Last Cleanup</dt><dd id="cleanup-last-run">-</dd></div>
+              <div><dt>Last Result</dt><dd id="cleanup-last-result">-</dd></div>
+            </dl>
+          </article>
 
-        <article class="panel status-panel">
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Cleanup Policy</h2>
+              <button id="save-cleanup-settings-button" type="button">Save Policy</button>
+            </div>
+            <div class="settings-grid">
+              <label>TTL Hours<input id="cleanup-ttl-hours" type="number" min="1" /></label>
+              <label>Max Items<input id="cleanup-max-items" type="number" min="1" /></label>
+              <label>Max Total Size MB<input id="cleanup-max-size-mb" type="number" min="1" /></label>
+              <label>Interval Minutes<input id="cleanup-interval-minutes" type="number" min="1" /></label>
+              <label class="checkbox-row"><input id="cleanup-enabled" type="checkbox" />Cleaner Enabled</label>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" data-page="webdav">
+        <article class="panel full-page-panel">
           <div class="panel-head">
-            <h2>Service Status</h2>
-            <button id="refresh-health-button" type="button" class="secondary">Refresh</button>
-          </div>
-          <div id="health-state" class="status-chip">Checking...</div>
-          <dl class="meta-grid">
             <div>
-              <dt>Version</dt>
-              <dd id="health-version">-</dd>
+              <div class="inline-badge-row">
+                <h2>WebDAV Sync</h2>
+                <span class="preview-pill">Preview</span>
+              </div>
+              <p class="muted">Save WebDAV settings, test the connection, and trigger one manual sync pass.</p>
             </div>
-            <div>
-              <dt>Server</dt>
-              <dd id="server-origin">-</dd>
-            </div>
-          </dl>
-        </article>
-
-        <article class="panel settings-panel">
-          <div class="panel-head">
-            <h2>Runtime Settings</h2>
-            <button id="save-admin-token-button" type="button">Save Token</button>
-          </div>
-          <div class="field-stack">
-            <label for="admin-token-input">Admin Token</label>
-            <input id="admin-token-input" type="password" placeholder="Change management token" />
-          </div>
-          <div class="field-stack">
-            <span class="mini-label">Restart Required Settings</span>
-            <div id="startup-settings" class="settings-summary muted"></div>
-          </div>
-        </article>
-
-        <article class="panel limits-panel">
-          <div class="panel-head">
-            <h2>Limits</h2>
-            <button id="save-limits-button" type="button">Save Limits</button>
-          </div>
-          <div class="settings-grid">
-            <label>Text Min<input id="limit-min-text" type="number" min="0" /></label>
-            <label>Text Max<input id="limit-max-text" type="number" min="1" /></label>
-            <label>Image Min<input id="limit-min-image" type="number" min="0" /></label>
-            <label>Image Max<input id="limit-max-image" type="number" min="1" /></label>
-            <label>File Min<input id="limit-min-file" type="number" min="0" /></label>
-            <label>File Max<input id="limit-max-file" type="number" min="1" /></label>
-            <label>Link Min<input id="limit-min-link" type="number" min="0" /></label>
-            <label>Link Max<input id="limit-max-link" type="number" min="1" /></label>
-            <label>Request Max<input id="limit-max-request" type="number" min="1" /></label>
-          </div>
-        </article>
-
-        <article class="panel cleanup-status-panel">
-          <div class="panel-head">
-            <h2>Retention Status</h2>
-            <div class="panel-actions">
-              <button id="refresh-cleanup-button" type="button" class="secondary">Refresh</button>
-              <button id="run-cleanup-button" type="button">Run Cleanup Now</button>
-            </div>
-          </div>
-          <dl class="meta-grid">
-            <div><dt>History Items</dt><dd id="storage-history-count">-</dd></div>
-            <div><dt>Favorites</dt><dd id="storage-favorite-count">-</dd></div>
-            <div><dt>Total Bytes</dt><dd id="storage-total-bytes">-</dd></div>
-            <div><dt>File Bytes</dt><dd id="storage-file-bytes">-</dd></div>
-            <div><dt>Last Cleanup</dt><dd id="cleanup-last-run">-</dd></div>
-            <div><dt>Last Result</dt><dd id="cleanup-last-result">-</dd></div>
-          </dl>
-        </article>
-
-        <article class="panel cleanup-settings-panel">
-          <div class="panel-head">
-            <h2>Cleanup Policy</h2>
-            <button id="save-cleanup-settings-button" type="button">Save Policy</button>
-          </div>
-          <div class="settings-grid">
-            <label>TTL Hours<input id="cleanup-ttl-hours" type="number" min="1" /></label>
-            <label>Max Items<input id="cleanup-max-items" type="number" min="1" /></label>
-            <label>Max Total Size MB<input id="cleanup-max-size-mb" type="number" min="1" /></label>
-            <label>Interval Minutes<input id="cleanup-interval-minutes" type="number" min="1" /></label>
-            <label class="checkbox-row"><input id="cleanup-enabled" type="checkbox" />Cleaner Enabled</label>
-          </div>
-        </article>
-
-        <article class="panel webdav-panel">
-          <div class="panel-head">
-            <h2>WebDAV Sync</h2>
             <div class="panel-actions">
               <button id="test-webdav-button" type="button" class="secondary">Test Connection</button>
               <button id="sync-webdav-button" type="button">Run Sync</button>
             </div>
           </div>
-          <div class="panel-actions">
-            <button id="save-webdav-settings-button" type="button">Save WebDAV Settings</button>
-            <button id="refresh-webdav-button" type="button" class="secondary">Refresh Status</button>
-          </div>
-          <div class="settings-grid">
+          <div class="settings-grid webdav-grid">
             <label>URL<input id="webdav-url" type="url" placeholder="https://dav.example.com/remote.php/dav/files/user" /></label>
             <label>Username<input id="webdav-username" type="text" placeholder="WebDAV username" /></label>
             <label>Password<input id="webdav-password" type="password" placeholder="WebDAV password" /></label>
             <label>Base Path<input id="webdav-base-path" type="text" placeholder="ClipBridgeServer" /></label>
             <label class="checkbox-row"><input id="webdav-enabled" type="checkbox" />Enable WebDAV Sync</label>
+          </div>
+          <div class="action-row">
+            <button id="save-webdav-settings-button" type="button">Save WebDAV Settings</button>
+            <button id="refresh-webdav-button" type="button" class="secondary">Refresh Status</button>
           </div>
           <dl class="meta-grid">
             <div><dt>Last Test</dt><dd id="webdav-tested-at">-</dd></div>
@@ -198,61 +367,14 @@
             <div><dt>Transfer</dt><dd id="webdav-transfer-summary">-</dd></div>
           </dl>
         </article>
-
-        <article class="panel pairing-panel">
-          <div class="panel-head">
-            <h2>Pair Devices</h2>
-            <button id="generate-pairing-button" type="button">Generate Code</button>
-          </div>
-          <p class="muted">Use your admin token here. New pairing codes last 5 minutes and work once.</p>
-          <div id="pairing-output" class="pairing-output hidden">
-            <div><span class="mini-label">Pairing Code</span><strong id="pairing-code-value">-</strong></div>
-            <div><span class="mini-label">Expires</span><strong id="pairing-code-expiry">-</strong></div>
-            <div><span class="mini-label">Pairing URI</span><code id="pairing-code-uri">-</code></div>
-          </div>
-        </article>
-
-        <article class="panel favorites-panel">
-          <div class="panel-head">
-            <h2>Favorites</h2>
-            <button id="refresh-favorites-button" type="button" class="secondary">Refresh</button>
-          </div>
-          <ul id="favorites-list" class="history-list"></ul>
-        </article>
-
-        <article class="panel history-panel">
-          <div class="panel-head">
-            <h2>Clipboard History</h2>
-            <button id="refresh-history-button" type="button" class="secondary">Refresh</button>
-          </div>
-          <div class="filters-row">
-            <div class="field-column">
-              <label for="history-category-filter">Category Filter</label>
-              <select id="history-category-filter"></select>
-            </div>
-            <div class="field-column">
-              <label for="new-category-input">New Category</label>
-              <div class="inline-row">
-                <input id="new-category-input" type="text" placeholder="e.g. work" />
-                <button id="create-category-button" type="button" class="secondary">Add</button>
-              </div>
-            </div>
-          </div>
-          <ul id="history-list" class="history-list"></ul>
-        </article>
-
-        <article class="panel devices-panel">
-          <div class="panel-head">
-            <h2>Paired Devices</h2>
-            <button id="refresh-devices-button" type="button" class="secondary">Refresh</button>
-          </div>
-          <ul id="devices-list" class="devices-list"></ul>
-        </article>
       </section>
 
       <section class="panel activity-panel">
         <div class="panel-head">
-          <h2>Activity</h2>
+          <div>
+            <h2>Activity</h2>
+            <p class="muted">Recent UI actions and API feedback.</p>
+          </div>
           <button id="clear-notices-button" type="button" class="secondary">Clear</button>
         </div>
         <ul id="notice-list" class="notice-list"></ul>
