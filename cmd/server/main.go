@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/cinmou/ClipBridgeServer/internal/api"
@@ -27,6 +26,10 @@ func main() {
 			log.Fatalf("configuration file %q not found", *configPath)
 		}
 		log.Fatalf("load configuration failed: %v", err)
+	}
+
+	if err := prepareConfig(cfg, log.Default()); err != nil {
+		log.Fatalf("prepare configuration failed: %v", err)
 	}
 
 	dbStore, err := store.OpenSQLite(cfg.Storage.DatabasePath)
@@ -52,8 +55,10 @@ func main() {
 
 	log.Printf("ClipBridgeServer starting on %s", addr)
 	log.Printf("ClipBridgeServer sqlite ready at %s", cfg.Storage.DatabasePath)
+	logStartup(log.Default(), cfg)
 
-	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatalf("server stopped: %v", err)
+	if err := serve(cfg, router); err != nil {
+		logSafePrintf(log.Default(), "server stopped: %v", err)
+		os.Exit(1)
 	}
 }

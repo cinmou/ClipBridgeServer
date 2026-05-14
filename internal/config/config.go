@@ -14,6 +14,7 @@ import (
 type Config struct {
 	Auth    AuthConfig    `yaml:"auth"`
 	Server  ServerConfig  `yaml:"server"`
+	TLS     TLSConfig     `yaml:"tls"`
 	Storage StorageConfig `yaml:"storage"`
 	Limits  LimitsConfig  `yaml:"limits"`
 	Cleaner CleanerConfig `yaml:"cleaner"`
@@ -27,6 +28,12 @@ type AuthConfig struct {
 type ServerConfig struct {
 	Host string `yaml:"host"`
 	Port int    `yaml:"port"`
+}
+
+type TLSConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	CertFile string `yaml:"cert_file"`
+	KeyFile  string `yaml:"key_file"`
 }
 
 type StorageConfig struct {
@@ -88,10 +95,6 @@ func (c *Config) Validate() error {
 
 	if ip := net.ParseIP(c.Server.Host); ip == nil && c.Server.Host != "localhost" {
 		return fmt.Errorf("server.host must be a valid IP address or localhost")
-	}
-
-	if c.Auth.Token == "" {
-		return fmt.Errorf("auth.token must not be empty")
 	}
 
 	if c.Storage.DataDir == "" {
@@ -168,6 +171,15 @@ func (c *Config) Validate() error {
 
 	if c.Cleaner.IntervalMinutes <= 0 {
 		return fmt.Errorf("cleaner.interval_minutes must be greater than 0")
+	}
+
+	if c.TLS.Enabled {
+		if c.TLS.CertFile == "" {
+			return fmt.Errorf("tls.cert_file must not be empty when tls.enabled is true")
+		}
+		if c.TLS.KeyFile == "" {
+			return fmt.Errorf("tls.key_file must not be empty when tls.enabled is true")
+		}
 	}
 
 	return nil

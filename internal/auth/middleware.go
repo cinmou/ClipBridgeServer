@@ -5,6 +5,7 @@ package auth
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -67,5 +68,15 @@ func GenerateDeviceToken() (string, error) {
 		return "", fmt.Errorf("generate device token bytes: %w", err)
 	}
 
-	return hex.EncodeToString(bytes), nil
+	return "cb_device_" + base64.RawURLEncoding.EncodeToString(bytes), nil
+}
+
+// GenerateAdminToken creates a long opaque admin token for management APIs.
+func GenerateAdminToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("generate admin token bytes: %w", err)
+	}
+
+	return "cb_admin_" + base64.RawURLEncoding.EncodeToString(bytes), nil
 }

@@ -1,45 +1,14 @@
-# Deployment Guide
+# Deployment
 
-ClipBridgeServer is designed to stay easy to ship:
+ClipBridgeServer is designed to stay simple to deploy:
 
 - one server binary
 - one `config.yaml`
-- one `data/` directory
+- one data directory
 
-This phase adds the packaging and service examples needed to move from
-`go run` into normal user deployment.
+## Local Run
 
-## Release Artifacts
-
-The release workflow builds these binaries:
-
-- `clipbridge-server-linux-amd64`
-- `clipbridge-server-linux-arm64`
-- `clipbridge-server-darwin-amd64`
-- `clipbridge-server-darwin-arm64`
-- `clipbridge-server-windows-amd64.exe`
-
-The GitHub Actions workflow lives in
-`/.github/workflows/release.yml`. It runs tests, cross-builds the server, uploads
-workflow artifacts, and publishes assets when a `v*` tag is pushed.
-
-## Local Build
-
-Build one local binary:
-
-```bash
-go build -o clipbridge-server ./cmd/server
-```
-
-Build all release binaries into `dist/`:
-
-```bash
-bash scripts/build-release.sh
-```
-
-## Minimal Runtime Layout
-
-The recommended layout is:
+Typical local layout:
 
 ```text
 clipbridge/
@@ -48,147 +17,129 @@ clipbridge/
   data/
 ```
 
-Start it with:
+Build and run:
+
+```bash
+go build -o clipbridge-server ./cmd/server
+./clipbridge-server -config ./config.yaml
+```
+
+Open:
+
+```text
+http://127.0.0.1:8787/
+```
+
+## LAN Run
+
+If you want other devices on your LAN to reach the server, set:
+
+```yaml
+server:
+  host: "0.0.0.0"
+  port: 8787
+```
+
+Then start normally:
 
 ```bash
 ./clipbridge-server -config ./config.yaml
 ```
 
-After first startup the SQLite database and uploaded file storage stay under
-`data/`.
-
-## Docker
-
-Build and run with Docker:
+Example health check from another LAN device:
 
 ```bash
-docker build -t clipbridge-server .
-docker run --rm -p 8787:8787 \
-  -v "$(pwd)/data:/app/data" \
-  -v "$(pwd)/config.yaml:/app/config.yaml:ro" \
-  clipbridge-server
+curl http://YOUR-LAN-IP:8787/api/health
 ```
 
-Or use the provided compose example:
+For trusted LAN use, plain HTTP is acceptable. For broader access, place the
+server behind HTTPS.
+
+## Router And NAS Notes
+
+ClipBridgeServer can run on:
+
+- small home servers
+- NAS boxes
+- SBCs
+- routers with enough storage and memory
+
+Recommendations:
+
+- keep the data directory on durable storage
+- do not store large uploads on tiny router flash
+- prefer SSD, HDD, NAS volume, or external storage for long-term history
+
+If your router or NAS has built-in HTTPS reverse proxy support, that is usually
+the easiest way to add secure remote access.
+
+## Data Directory Recommendations
+
+The data directory holds:
+
+- SQLite database
+- uploaded files and images
+- generated admin token secret
+- related runtime state
+
+Suggested practice:
+
+- keep it outside temporary directories
+- back it up if the clipboard history matters to you
+- use a location with enough space for file and image uploads
+
+## HTTPS Recommendation
+
+For remote or public access, use an HTTPS reverse proxy such as:
+
+- Caddy
+- Nginx
+- Traefik
+- Tailscale
+- NAS or router HTTPS gateway
+
+Built-in TLS is optional. You can also enable it directly in config if you
+already have certificate and key files.
+
+## Optional Built-In TLS
+
+Example:
+
+```yaml
+tls:
+  enabled: true
+  cert_file: "/path/to/fullchain.pem"
+  key_file: "/path/to/privkey.pem"
+```
+
+Then run:
 
 ```bash
-cp docker-compose.example.yml docker-compose.yml
-docker compose up -d
+./clipbridge-server -config ./config.yaml
 ```
 
-## Linux With systemd
+## Example Commands
 
-Example unit:
-
-- `deploy/systemd/clipbridge-server.service`
-
-Typical install flow:
+Build:
 
 ```bash
-sudo useradd --system --home /opt/clipbridge --shell /usr/sbin/nologin clipbridge
-sudo mkdir -p /opt/clipbridge/data
-sudo cp clipbridge-server /opt/clipbridge/clipbridge-server
-sudo cp config.yaml /opt/clipbridge/config.yaml
-sudo cp deploy/systemd/clipbridge-server.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now clipbridge-server
+go build -o clipbridge-server ./cmd/server
 ```
 
-## macOS With launchd
-
-Example plist:
-
-- `deploy/launchd/com.cinmou.clipbridge-server.plist`
-
-Typical install flow:
+Run:
 
 ```bash
-sudo mkdir -p /usr/local/etc/clipbridge /usr/local/var/clipbridge/data /usr/local/var/log
-sudo cp clipbridge-server /usr/local/bin/clipbridge-server
-sudo cp config.yaml /usr/local/etc/clipbridge/config.yaml
-cp deploy/launchd/com.cinmou.clipbridge-server.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.cinmou.clipbridge-server.plist
+./clipbridge-server -config ./config.yaml
 ```
 
-If you use Homebrew, the example formula also includes a `service` block.
+Health check:
 
-## Windows With NSSM
+```bash
+curl http://127.0.0.1:8787/api/health
+```
 
-Example install script:
-
-- `deploy/windows/nssm-install.ps1`
-
-Expected layout:
+Open Web UI:
 
 ```text
-C:\ClipBridge\
-  clipbridge-server-windows-amd64.exe
-  config.yaml
-  data\
+http://127.0.0.1:8787/
 ```
-
-Then install with NSSM:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\deploy\windows\nssm-install.ps1
-```
-
-## OpenWrt
-
-Example init script:
-
-- `deploy/openwrt/clipbridge-server.init`
-
-Suggested layout:
-
-- binary at `/usr/bin/clipbridge-server`
-- config at `/etc/clipbridge/config.yaml`
-- working directory at `/var/lib/clipbridge`
-
-Enable it with:
-
-```sh
-chmod +x /etc/init.d/clipbridge-server
-/etc/init.d/clipbridge-server enable
-/etc/init.d/clipbridge-server start
-```
-
-## Homebrew Tap Notes
-
-An example formula is included at:
-
-- `deploy/homebrew/clipbridge-server.rb`
-
-Before publishing a tap, replace the placeholder SHA-256 values with real
-release checksums and point the tap at your release assets.
-
-## Scoop Notes
-
-An example manifest is included at:
-
-- `deploy/scoop/clipbridge-server.json`
-
-Before publishing a Scoop bucket entry, replace the placeholder hash with the
-real Windows release checksum.
-
-## Verification Checklist
-
-After deployment, verify:
-
-1. the process starts with `-config config.yaml`
-2. `data/clipbridge.db` is created automatically
-3. `GET /api/health` returns a healthy response
-4. `GET /` opens the embedded Web UI
-5. one authenticated clipboard request still works
-
-## Related Files
-
-- `Dockerfile`
-- `docker-compose.example.yml`
-- `scripts/build-release.sh`
-- `deploy/systemd/clipbridge-server.service`
-- `deploy/launchd/com.cinmou.clipbridge-server.plist`
-- `deploy/windows/nssm-install.ps1`
-- `deploy/openwrt/clipbridge-server.init`
-- `deploy/homebrew/clipbridge-server.rb`
-- `deploy/scoop/clipbridge-server.json`

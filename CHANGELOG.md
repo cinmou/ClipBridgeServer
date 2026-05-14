@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.0-beta.1 "Cherwell"
+
+Second beta release focused on the embedded Web UI upgrade.
+
+- redesigned the embedded Web UI into a full clipboard client and management console
+- introduced the Web UI redesign initiative under the `WebDock` codename
+- added a dashboard quick clipboard workflow for browser text upload, latest fetch, and browser clipboard copy
+- expanded history and favorites with richer cards, detail views, search, filtering, file metadata, thumbnails, and item actions
+- refreshed pairing, settings, cleanup, storage, and WebDAV management screens for consistent mobile-friendly use
+- made embedded frontend routing refresh-safe for path-based navigation inside the single Go binary
+- exposed clipboard item `size_bytes` in API responses for richer file and image metadata in the Web UI
+
 ## v0.1.0-beta.1 "Lea"
 
 First public beta release of ClipBridgeServer.

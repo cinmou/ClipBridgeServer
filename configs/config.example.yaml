@@ -6,17 +6,24 @@
 
 auth:
   # Shared admin token for management APIs such as pairing code generation and
-  # cleanup settings.
-  token: "dev-token-123"
+  # cleanup settings. Leave empty to let the server generate one under
+  # `data/secrets/admin_token`.
+  token: ""
 
 server:
   # Listen address.
   # 0.0.0.0 means the server accepts connections from other devices in the LAN.
   # Use 127.0.0.1 if you only want local access during development.
-  host: "0.0.0.0"
+  host: "127.0.0.1"
 
   # HTTP port used by the API server.
   port: 8787
+
+tls:
+  # Keep disabled unless you have a certificate and key configured.
+  enabled: false
+  cert_file: ""
+  key_file: ""
 
 storage:
   # Directory used by the server to store runtime data.

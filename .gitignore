@@ -42,3 +42,4 @@ clipbridge-server
 config.yaml
 clipbridge-server.exe
 config.yaml
+docs/DESIGN.md

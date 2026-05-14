@@ -4,7 +4,7 @@ package api
 
 import "net/http"
 
-const version = "0.1.0"
+const version = "v0.2.0-beta.1"
 
 type healthResponse struct {
 	OK      bool   `json:"ok"`

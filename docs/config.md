@@ -1,104 +1,142 @@
 # Configuration
 
-## Active Keys In The Current Implementation
+ClipBridgeServer reads runtime startup config from `config.yaml`.
 
-The current code actively reads these keys from `config.yaml`:
+Use [`configs/config.example.yaml`](../configs/config.example.yaml) as the
+starting point.
 
-### `auth.token`
-
-Bearer token required by every protected API route.
+## Main Fields
 
 ### `server.host`
 
-HTTP listen host.
+Listen host for the embedded HTTP server.
 
-Examples:
+Common values:
 
 - `127.0.0.1`
 - `0.0.0.0`
 - `localhost`
 
+Default behavior is local-only binding through `127.0.0.1`.
+
 ### `server.port`
 
-HTTP listen port.
+Listen port for the server.
 
-Default:
+Typical value:
 
 - `8787`
 
 ### `storage.data_dir`
 
-Directory used for local runtime data.
+Directory for runtime data such as:
 
-Default:
-
-- `./data`
+- uploaded files
+- generated secrets
+- local sync/runtime state
 
 ### `storage.database_path`
 
-SQLite database file path.
+Path to the SQLite database file.
 
-Default:
+Typical value:
 
 - `./data/clipbridge.db`
 
+### `auth.token`
+
+Admin token for management access.
+
+This field can be left empty.
+
+If it is empty, ClipBridgeServer generates an admin token automatically and
+stores it under:
+
+```text
+data/secrets/admin_token
+```
+
+### `tls.enabled`
+
+Enables built-in TLS startup.
+
+If `false`, the server uses normal HTTP startup.
+
+### `tls.cert_file`
+
+Certificate file path used when `tls.enabled` is `true`.
+
+### `tls.key_file`
+
+Private key file path used when `tls.enabled` is `true`.
+
+## Cleanup And Retention
+
+These startup values seed the runtime cleanup policy:
+
 ### `storage.ttl_hours`
 
-Default TTL used to seed the persisted cleanup policy.
+Default retention TTL for non-favorite items.
 
 ### `storage.max_items`
 
-Default maximum active history count used to seed the persisted cleanup policy.
+Default maximum active clipboard history count.
 
 ### `storage.max_total_size_mb`
 
-Default maximum active storage budget used to seed the persisted cleanup policy.
-
-### `limits.min_text_bytes`
-
-Minimum allowed text clipboard payload size in bytes.
-
-### `limits.max_text_bytes`
-
-Maximum allowed text clipboard payload size in bytes.
-
-### `limits.max_request_bytes`
-
-Maximum allowed HTTP request body size in bytes.
+Default maximum active storage budget.
 
 ### `cleaner.enabled`
 
-Whether the background cleanup worker should run by default.
+Whether the background cleanup worker should run.
 
 ### `cleaner.interval_minutes`
 
-Default background cleanup interval in minutes.
+How often the cleanup worker wakes up and reloads policy.
 
-## Current Validation Rules
+## Request Limits
 
-- `auth.token` must not be empty
-- `server.host` must be a valid IP address or `localhost`
-- `server.port` must be between `1` and `65535`
-- `storage.data_dir` must not be empty
-- `storage.database_path` must not be empty
-- `storage.ttl_hours` must be greater than `0`
-- `storage.max_items` must be greater than `0`
-- `storage.max_total_size_mb` must be greater than `0`
-- `limits.min_text_bytes` must be greater than or equal to `0`
-- `limits.max_text_bytes` must be greater than `0`
-- `limits.max_request_bytes` must be greater than `0`
-- `limits.min_text_bytes` must not be greater than `limits.max_text_bytes`
-- `cleaner.interval_minutes` must be greater than `0`
+Current request and payload sizing fields:
+
+- `limits.min_text_bytes`
+- `limits.max_text_bytes`
+- `limits.min_image_bytes`
+- `limits.max_image_bytes`
+- `limits.min_file_bytes`
+- `limits.max_file_bytes`
+- `limits.min_link_bytes`
+- `limits.max_link_bytes`
+- `limits.max_request_bytes`
+
+## WebDAV Settings
+
+WebDAV settings are runtime-managed rather than startup-managed.
+
+They are updated through the Web UI or settings API and include:
+
+- enabled flag
+- server URL
+- username
+- password
+- base path
+
+These are not the main startup fields in `config.yaml`, but they are part of
+the current server behavior.
 
 ## Example
 
 ```yaml
 auth:
-  token: "dev-token-123"
+  token: ""
 
 server:
-  host: "0.0.0.0"
+  host: "127.0.0.1"
   port: 8787
+
+tls:
+  enabled: false
+  cert_file: ""
+  key_file: ""
 
 storage:
   data_dir: "./data"
@@ -110,6 +148,12 @@ storage:
 limits:
   min_text_bytes: 1
   max_text_bytes: 262144
+  min_image_bytes: 1
+  max_image_bytes: 10485760
+  min_file_bytes: 1
+  max_file_bytes: 52428800
+  min_link_bytes: 1
+  max_link_bytes: 8192
   max_request_bytes: 1048576
 
 cleaner:

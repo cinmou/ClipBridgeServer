@@ -5,11 +5,16 @@ package config
 func Default() *Config {
 	return &Config{
 		Auth: AuthConfig{
-			Token: "dev-token-please-change",
+			Token: "",
 		},
 		Server: ServerConfig{
 			Host: "127.0.0.1",
 			Port: 8787,
+		},
+		TLS: TLSConfig{
+			Enabled:  false,
+			CertFile: "",
+			KeyFile:  "",
 		},
 		Storage: StorageConfig{
 			DataDir:        "./data",

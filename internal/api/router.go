@@ -12,6 +12,7 @@ import (
 	"github.com/cinmou/ClipBridgeServer/internal/auth"
 	"github.com/cinmou/ClipBridgeServer/internal/cleanup"
 	"github.com/cinmou/ClipBridgeServer/internal/config"
+	"github.com/cinmou/ClipBridgeServer/internal/redact"
 	"github.com/cinmou/ClipBridgeServer/internal/store"
 	"github.com/cinmou/ClipBridgeServer/internal/webdav"
 )
@@ -183,7 +184,7 @@ func (r *Router) loggingMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(recorder, req)
 
-		log.Printf("%s %s %d %s", req.Method, req.URL.Path, recorder.statusCode, time.Since(startTime))
+		log.Printf("%s %s %d %s", req.Method, redact.Text(req.URL.RequestURI()), recorder.statusCode, time.Since(startTime))
 	})
 }
 

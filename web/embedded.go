@@ -6,6 +6,8 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
+	"path"
+	"strings"
 )
 
 // distFS holds the built frontend bundle that ships inside the server binary.
@@ -25,19 +27,43 @@ func Handler() http.Handler {
 
 	fileServer := http.FileServer(http.FS(staticFS))
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == "/" {
-			indexHTML, readErr := fs.ReadFile(staticFS, "index.html")
-			if readErr != nil {
+		if shouldServeIndex(staticFS, req.URL.Path) {
+			if err := serveIndexHTML(w, staticFS); err != nil {
 				http.Error(w, "embedded index.html is missing", http.StatusInternalServerError)
-				return
 			}
-
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = w.Write(indexHTML)
 			return
 		}
 
 		req = req.Clone(req.Context())
 		fileServer.ServeHTTP(w, req)
 	})
+}
+
+func shouldServeIndex(staticFS fs.FS, requestPath string) bool {
+	if requestPath == "/" || requestPath == "" {
+		return true
+	}
+
+	cleanPath := strings.TrimPrefix(path.Clean(requestPath), "/")
+	if cleanPath == "." || cleanPath == "" {
+		return true
+	}
+
+	if strings.Contains(path.Base(cleanPath), ".") {
+		return false
+	}
+
+	_, err := fs.Stat(staticFS, cleanPath)
+	return err != nil
+}
+
+func serveIndexHTML(w http.ResponseWriter, staticFS fs.FS) error {
+	indexHTML, err := fs.ReadFile(staticFS, "index.html")
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(indexHTML)
+	return nil
 }

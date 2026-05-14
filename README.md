@@ -1,159 +1,40 @@
 # ClipBridgeServer
 
-A lightweight self-hosted clipboard stack service for syncing text, pairing
-devices, managing history, and serving an embedded Web UI from one portable
-server binary.
+A lightweight self-hosted clipboard sync server with an embedded Web UI.
 
-Language:
+一个轻量、自托管、带内置 Web 管理界面的剪贴板同步服务端。
 
-- English: `README.md`
-- 简体中文: `README.zh-CN.md`
+## Status
 
-## Beta 1
+- Current version: `v0.2.0-beta.1` `Cherwell`
+- Project status: beta
+- `Cherwell` focuses on the embedded Web UI, practical self-hosting, and a light security baseline.
 
-This README now serves as the first formal Beta document for
-ClipBridgeServer.
+## Features
 
-Beta 1 means:
+- Embedded Web UI
+- Clipboard history
+- Text, link, image, and file support
+- Favorites
+- Devices and pairing codes
+- Cleanup and retention policy
+- WebDAV manual sync preview
+- Lightweight self-hosted deployment
+- Optional TLS support
+- Simple token-based access
+- English and Simplified Chinese Web UI
 
-- the server is already usable as a self-hosted clipboard hub
-- the deployment model is stable enough for normal users to try
-- the embedded Web UI is good enough for daily management
-- some important future work is still intentionally marked as preview or not yet shipped
+## Screenshots
 
-## Current Stage
+Screenshots are not included in this repository yet.
 
-This repository is currently in phase 11, with WebDAV sync preview now added on
-top of deployment support:
+## Architecture
 
-- phase 8: image, file, and link support
-- phase 9: settings API plus Web settings
-- phase 10: deployment and release packaging
-- phase 11: WebDAV sync preview
+`ClipBridgeServer` is the core server process. It exposes the HTTP API, stores clipboard history in SQLite, manages pairing and device tokens, and serves the embedded Web UI from the same binary.
 
-The service can now do three important things at the same time:
+The Web UI is embedded into the server binary and is meant for day-to-day management and lightweight browser-based clipboard usage.
 
-- act as the central clipboard API and history store
-- let the browser act as a lightweight manual clipboard client
-- run as a long-lived self-hosted service with automatic retention controls
-
-At this point, the project is already usable as a self-hosted clipboard server
-for:
-
-- text, link, image, and small file history
-- device pairing with long-lived device tokens
-- favorites, categories, and retention policy
-- embedded Web UI management
-- manual WebDAV sync preview
-
-Deployment is still intentionally simple:
-
-- one server binary
-- one `config.yaml`
-- one `data/` directory
-
-This phase adds:
-
-- local multi-platform release builds through `scripts/build-release.sh`
-- GitHub Actions release automation
-- Docker and Docker Compose examples
-- `systemd`, `launchd`, Windows NSSM, and OpenWrt service examples
-- Homebrew Tap and Scoop manifest templates
-- manual WebDAV sync preview with persisted settings and sync status
-
-## Progress So Far
-
-Delivered through phase 9:
-
-- `go run ./cmd/server -config config.yaml` starts the HTTP server
-- `internal/config` loads and validates YAML config
-- `internal/store` opens SQLite, creates `data/clipbridge.db`, and runs migrations
-- `GET /api/health` works without a token
-- bearer token auth protects every other API route
-- one-time pairing codes can mint long-lived `device_token` values
-- device tokens can call clipboard APIs
-- `POST /api/clipboard/text` stores text clipboard items
-- `POST /api/clipboard/link` stores one link clipboard item
-- `POST /api/clipboard/file` stores one image or file clipboard item through `multipart/form-data`
-- `GET /api/clipboard/latest` returns the newest clipboard item
-- `GET /api/clipboard/history` returns history ordered newest first
-- `GET /api/clipboard/items/{id}` returns one record
-- `GET /api/clipboard/items/{id}/file` streams one stored image or file back to the client
-- `DELETE /api/clipboard/items/{id}` soft-deletes one record
-- `POST /api/clipboard/items/{id}/favorite` favorites one record
-- `DELETE /api/clipboard/items/{id}/favorite` removes one favorite
-- `GET /api/favorites` returns favorite clipboard items
-- built-in categories `text`, `image`, `link`, and `file` are seeded automatically
-- history can now distinguish and return `text`, `image`, `link`, and `file` items
-- SQLite stores file metadata only; uploaded bytes stay on disk under the data directory
-- uploaded images can be previewed and downloaded through the existing item API
-- uploaded files are streamed to disk while computing SHA-256 and MIME type
-- `GET /api/categories` lists built-in and custom categories
-- `POST /api/categories` creates one custom category
-- `PATCH /api/clipboard/items/{id}/category` updates one item's category
-- `GET /api/clipboard/history?category=text` filters history by category
-- `POST /api/admin/cleanup/run` triggers one manual cleanup pass
-- `GET /api/admin/cleanup/status` returns the latest cleanup summary
-- `GET /api/admin/storage/status` returns current storage usage
-- `GET /api/settings/cleanup` returns the persisted cleanup policy
-- `PATCH /api/settings/cleanup` updates the cleanup policy without restarting the server
-- `GET /api/settings` returns the combined runtime settings and startup-only settings
-- `PATCH /api/settings` can change the admin token at runtime
-- `GET /api/settings/limits` returns the persisted runtime upload limits
-- `PATCH /api/settings/limits` updates text, image, file, link, and request size limits without restart
-- cleanup policy is stored in the `settings` table and reloaded after restart
-- favorites are skipped by automatic cleanup
-- the background cleaner can enforce TTL, max history count, and max total storage size
-- successful API responses use a top-level `data`
-- failed API responses use a top-level `error`
-- request size limits, text size limits, CORS, and request logs are enabled
-- `GET /` serves an embedded Web UI from the Go binary
-- the Web UI can upload browser text to the shared clipboard stack through the existing clipboard API
-- the Web UI can read server latest, copy latest into the browser clipboard, and refresh latest manually
-- the Web UI can show history, favorites, devices, pairing codes, cleanup status, and cleanup policy
-
-Delivered in phase 10:
-
-- `go build ./cmd/server` produces the standalone server binary
-- `scripts/build-release.sh` cross-builds the planned release targets into `dist/`
-- `.github/workflows/release.yml` runs tests and publishes tagged release assets
-- `Dockerfile` packages the server as a single-container service
-- `docker-compose.example.yml` provides a one-command local container example
-- `deploy/systemd/clipbridge-server.service` provides a Linux boot-time service example
-- `deploy/launchd/com.cinmou.clipbridge-server.plist` provides a macOS auto-start example
-- `deploy/windows/nssm-install.ps1` provides a Windows long-running service example
-- `deploy/openwrt/clipbridge-server.init` provides an OpenWrt init script example
-- `deploy/homebrew/clipbridge-server.rb` and `deploy/scoop/clipbridge-server.json` provide package manager templates for later publishing
-
-Delivered in phase 11:
-
-- `GET /api/settings/webdav` and `PATCH /api/settings/webdav` persist WebDAV backend settings
-- `POST /api/admin/webdav/test` validates the stored WebDAV connection settings
-- `POST /api/admin/webdav/sync` runs one manual WebDAV sync pass
-- `GET /api/admin/webdav/status` returns the latest test and sync status
-- clipboard items now get a deterministic sync key for import/export deduplication
-- WebDAV sync pushes `manifest.json`, `items/*.json`, and `files/*.bin`
-- remote text, image, link, and file items can be imported back into local history
-- the embedded Web UI can configure WebDAV, test the connection, and trigger sync
-
-Not implemented yet:
-
-- automatic desktop or mobile background clipboard watching
-- automatic background WebDAV sync
-- browser session login flow separate from bearer tokens
-- deep conflict resolution across multiple writers
-
-## What Comes Next
-
-The main work planned after this Beta is:
-
-- desktop clients that can watch the local clipboard in the background
-- tray or menu bar resident mode for Windows, Linux, and macOS
-- automatic background WebDAV sync instead of manual sync only
-- stronger sync conflict handling and clearer sync logs
-- optional end-to-end encryption so the server cannot read clipboard contents
-- richer browser and client login flows beyond raw bearer tokens
-- better import and export tooling for long-term self-hosted backups
+Desktop and mobile clients are planned as separate future projects. Those clients should stay thin and use the HTTP API rather than reimplement server logic locally.
 
 ## Quick Start
 
@@ -163,391 +44,168 @@ The main work planned after this Beta is:
 cp configs/config.example.yaml config.yaml
 ```
 
-2. Start the server:
+2. Build the embedded Web UI:
 
 ```bash
-go run ./cmd/server -config config.yaml
+cd web
+npm run build
+cd ..
 ```
 
-3. Verify the health endpoint:
-
-```bash
-curl http://127.0.0.1:8787/api/health
-```
-
-Expected response:
-
-```json
-{"data":{"ok":true,"version":"0.1.0"}}
-```
-
-4. Open the embedded Web UI:
-
-```text
-http://127.0.0.1:8787/
-```
-
-After startup, the server will create:
-
-- `data/clipbridge.db`
-
-## Deployment
-
-The shortest path for normal users is now:
-
-1. download the matching binary from GitHub Releases
-2. place it beside `config.yaml`
-3. create an empty `data/` directory
-4. run `./clipbridge-server -config ./config.yaml`
-
-For packaged deployment examples, see:
-
-- `docs/deployment.md`
-- `docs/deployment.zh-CN.md`
-- `README.zh-CN.md`
-
-## Build A Release
-
-If you just want one binary for your current machine:
+3. Build the server:
 
 ```bash
 go build -o clipbridge-server ./cmd/server
 ```
 
-If you want the full Beta release set:
+4. Run the server:
 
 ```bash
-bash scripts/build-release.sh
+./clipbridge-server -config config.yaml
 ```
 
-That writes these files into `dist/`:
-
-- `clipbridge-server-linux-amd64`
-- `clipbridge-server-linux-arm64`
-- `clipbridge-server-darwin-amd64`
-- `clipbridge-server-darwin-arm64`
-- `clipbridge-server-windows-amd64.exe`
-
-Recommended local release flow:
-
-1. run `env GOCACHE=$(pwd)/.gocache go test ./...`
-2. run `bash scripts/build-release.sh`
-3. open `dist/`
-4. pick the binary that matches the target platform
-
-If you want GitHub Releases assets instead of local files:
-
-1. commit your changes
-2. create a version tag such as `v0.11.0-beta1`
-3. push the tag
-4. let `.github/workflows/release.yml` build and upload the artifacts
-
-## How To Use
-
-### 1. Use The Admin Token
-
-By default the example config uses:
+5. Open the browser:
 
 ```text
-dev-token-123
+http://127.0.0.1:8787/
 ```
 
-Every protected API request must include:
+## Configuration
 
-```http
-Authorization: Bearer <token>
-```
+Use [`configs/config.example.yaml`](configs/config.example.yaml) as the starting point.
 
-### 2. Upload Text From A Client Or Browser
+Important settings:
 
-Classic text upload:
-
-```bash
-curl -X POST http://127.0.0.1:8787/api/clipboard/text \
-  -H 'Authorization: Bearer dev-token-123' \
-  -H 'Content-Type: application/json' \
-  -d '{"text":"hello from ClipBridge"}'
-```
-
-Web UI style upload with source metadata, using the same API:
-
-```bash
-curl -X POST http://127.0.0.1:8787/api/clipboard/text \
-  -H 'Authorization: Bearer dev-token-123' \
-  -H 'Content-Type: application/json' \
-  -d '{"content":"from browser","source_device_id":"web-ui","source_device_name":"Web UI"}'
-```
-
-### 3. Read Latest And History
-
-```bash
-curl -H 'Authorization: Bearer dev-token-123' \
-  http://127.0.0.1:8787/api/clipboard/latest
-
-curl -H 'Authorization: Bearer dev-token-123' \
-  http://127.0.0.1:8787/api/clipboard/history
-```
-
-Filter by category:
-
-```bash
-curl -H 'Authorization: Bearer dev-token-123' \
-  'http://127.0.0.1:8787/api/clipboard/history?category=text'
-```
-
-### 3.5. Upload Links And Files
-
-Upload a link:
-
-```bash
-curl -X POST http://127.0.0.1:8787/api/clipboard/link \
-  -H 'Authorization: Bearer dev-token-123' \
-  -H 'Content-Type: application/json' \
-  -d '{"url":"https://example.com","source_device_id":"web-ui","source_device_name":"Web UI"}'
-```
-
-Upload an image or file:
-
-```bash
-curl -X POST http://127.0.0.1:8787/api/clipboard/file \
-  -H 'Authorization: Bearer dev-token-123' \
-  -F 'file=@./demo.png' \
-  -F 'source_device_id=web-ui' \
-  -F 'source_device_name=Web UI'
-```
-
-Download one stored file:
-
-```bash
-curl -L -H 'Authorization: Bearer dev-token-123' \
-  http://127.0.0.1:8787/api/clipboard/items/1/file
-```
-
-### 4. Favorite Important Records
-
-```bash
-curl -X POST \
-  -H 'Authorization: Bearer dev-token-123' \
-  http://127.0.0.1:8787/api/clipboard/items/1/favorite
-
-curl -H 'Authorization: Bearer dev-token-123' \
-  http://127.0.0.1:8787/api/favorites
-
-curl -X DELETE \
-  -H 'Authorization: Bearer dev-token-123' \
-  http://127.0.0.1:8787/api/clipboard/items/1/favorite
-```
-
-### 5. Organize With Categories
-
-List categories:
-
-```bash
-curl -H 'Authorization: Bearer dev-token-123' \
-  http://127.0.0.1:8787/api/categories
-```
-
-Create a custom category:
-
-```bash
-curl -X POST http://127.0.0.1:8787/api/categories \
-  -H 'Authorization: Bearer dev-token-123' \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"work"}'
-```
-
-Move one record into a category:
-
-```bash
-curl -X PATCH http://127.0.0.1:8787/api/clipboard/items/1/category \
-  -H 'Authorization: Bearer dev-token-123' \
-  -H 'Content-Type: application/json' \
-  -d '{"category":"work"}'
-```
-
-### 6. Pair A Device
-
-Generate a one-time pairing code:
-
-```bash
-curl -X POST http://127.0.0.1:8787/api/auth/pairing-codes \
-  -H 'Authorization: Bearer dev-token-123'
-```
-
-Exchange it on the client:
-
-```bash
-curl -X POST http://127.0.0.1:8787/api/auth/pair \
-  -H 'Content-Type: application/json' \
-  -d '{"pairing_code":"ABCDEFGH","device_name":"My Laptop"}'
-```
-
-After that, the returned `device_token` can call clipboard APIs without asking
-the user to copy the long admin token manually.
-
-### 7. Inspect And Run Cleanup
-
-Check current storage usage:
-
-```bash
-curl -H 'Authorization: Bearer dev-token-123' \
-  http://127.0.0.1:8787/api/admin/storage/status
-```
-
-Check the current cleanup policy:
-
-```bash
-curl -H 'Authorization: Bearer dev-token-123' \
-  http://127.0.0.1:8787/api/settings/cleanup
-```
-
-Update the cleanup policy:
-
-```bash
-curl -X PATCH http://127.0.0.1:8787/api/settings/cleanup \
-  -H 'Authorization: Bearer dev-token-123' \
-  -H 'Content-Type: application/json' \
-  -d '{"ttl_hours":168,"max_items":1000,"max_total_size_mb":2048,"interval_minutes":30,"enabled":true}'
-```
-
-Run cleanup manually:
-
-```bash
-curl -X POST http://127.0.0.1:8787/api/admin/cleanup/run \
-  -H 'Authorization: Bearer dev-token-123'
-```
-
-### 8. Change Runtime Limits And Token
-
-Read combined settings:
-
-```bash
-curl -H 'Authorization: Bearer dev-token-123' \
-  http://127.0.0.1:8787/api/settings
-```
-
-Change the admin token:
-
-```bash
-curl -X PATCH http://127.0.0.1:8787/api/settings \
-  -H 'Authorization: Bearer dev-token-123' \
-  -H 'Content-Type: application/json' \
-  -d '{"admin_token":"new-admin-token"}'
-```
-
-Update runtime limits:
-
-```bash
-curl -X PATCH http://127.0.0.1:8787/api/settings/limits \
-  -H 'Authorization: Bearer new-admin-token' \
-  -H 'Content-Type: application/json' \
-  -d '{"min_text_bytes":1,"max_text_bytes":262144,"min_image_bytes":1,"max_image_bytes":10485760,"min_file_bytes":1,"max_file_bytes":52428800,"min_link_bytes":1,"max_link_bytes":8192,"max_request_bytes":62914560}'
-```
-
-### 9. Preview WebDAV Sync
-
-Save WebDAV settings:
-
-```bash
-curl -X PATCH http://127.0.0.1:8787/api/settings/webdav \
-  -H 'Authorization: Bearer new-admin-token' \
-  -H 'Content-Type: application/json' \
-  -d '{"enabled":true,"url":"https://dav.example.com/remote.php/dav/files/user","username":"demo","password":"secret","base_path":"ClipBridgeServer"}'
-```
-
-Test the connection:
-
-```bash
-curl -X POST http://127.0.0.1:8787/api/admin/webdav/test \
-  -H 'Authorization: Bearer new-admin-token'
-```
-
-Run one manual sync:
-
-```bash
-curl -X POST http://127.0.0.1:8787/api/admin/webdav/sync \
-  -H 'Authorization: Bearer new-admin-token'
-```
-
-## Web UI Usage
-
-Open `http://127.0.0.1:8787/` and:
-
-1. paste either the admin token or a device token into the token box
-2. press `Save`
-3. use `Quick Clipboard` to upload text, links, images, and small files
-4. use `Copy Latest` to write the current server text or link into the browser clipboard
-5. use `Favorites` and `Clipboard History` to organize mixed item types
-6. use `Runtime Settings`, `Limits`, `Retention Status`, and `Cleanup Policy` with the admin token when operating the server long-term
-7. use `WebDAV Sync` to save credentials, test the connection, and run one manual sync
-8. use `Pair Devices` and `Paired Devices` with the admin token when onboarding clients
+- `server.host` and `server.port`
+- `storage.data_dir`
+- `storage.database_path`
+- `auth.token`
+- `tls.enabled`
+- `tls.cert_file`
+- `tls.key_file`
 
 Notes:
 
-- admin token can access pairing, device management, cleanup status, and cleanup settings APIs
-- device token can access clipboard, favorites, and category APIs
-- the browser clipboard write path is manual only and triggered by a user click
-- the token is stored only in the current browser's local storage
+- The default bind address is `127.0.0.1`.
+- If `auth.token` is empty, ClipBridgeServer will generate an admin token and store it under `data/secrets/admin_token`.
+- Built-in TLS is optional. You can keep HTTP for trusted local or LAN use, or enable TLS if you already have certificates.
 
-## Cleanup Behavior
+## Web UI
 
-The current retention rules are:
+The embedded Web UI includes:
 
-- non-favorite items older than the configured TTL are deleted automatically
-- if active history count exceeds `max_items`, the oldest non-favorite items are deleted first
-- if total storage exceeds `max_total_size_mb`, the oldest non-favorite file items are deleted first, then other non-favorites if needed
-- favorite items are never deleted by automatic cleanup
-- manual deletion still works even when an item is favorited
+- Dashboard: latest clipboard item, quick upload, and status summary
+- History: reverse chronological clipboard browsing with search and type filters
+- Favorites: protected items excluded from automatic cleanup
+- Devices: pairing codes and paired device management
+- Settings: session token, language switcher, runtime status, security notes, cleanup controls
+- WebDAV: configuration, connection testing, and manual sync preview
 
-## Directory Layout
+Language support:
 
-- `cmd/server/main.go`: application entrypoint; reads config, initializes SQLite, starts cleanup service, creates router, starts HTTP server
-- `internal/config/config.go`: config structures, YAML loading, validation, and server address helper
-- `internal/config/defaults.go`: default config values for the current stage
-- `internal/auth/middleware.go`: bearer token parsing, pairing code generation, and secret hashing helpers
-- `internal/cleanup/service.go`: background cleaner, manual cleanup runner, and cleanup status assembly
-- `internal/webdav/service.go`: persisted WebDAV settings, connection test, manual sync, remote manifest handling, and import/export logic
-- `internal/store/sqlite.go`: SQLite connection lifecycle plus clipboard, favorites, categories, settings, and cleanup storage methods
-- `internal/store/settings.go`: cleanup policy validation helpers
-- `internal/store/sync_items.go`: import path for clipboard items pulled back from WebDAV
-- `internal/store/webdav_settings.go`: persisted WebDAV settings and sync status storage helpers
-- `internal/store/device_pairing.go`: pairing code, device token, device list, and device revoke storage logic
-- `internal/store/migrations.go`: migration runner and embedded SQL migration loading
-- `internal/store/sqlite_test.go`: regression test for database and table creation
-- `internal/store/text_items_test.go`: regression test for clipboard CRUD, metadata, favorites, and categories
-- `internal/store/device_pairing_test.go`: storage tests for pairing and device revocation
-- `migrations/001_init.sql`: initial schema for base tables
-- `migrations/002_device_pairing.sql`: device and pairing code schema
-- `migrations/003_favorites_categories.sql`: built-in category seeding and legacy category backfill
-- `migrations/004_cleanup_metadata.sql`: size and expiration columns for retention logic
-- `internal/api/router.go`: route registration, auth middleware, CORS, request size protection, and logging
-- `internal/api/health_handler.go`: health check handler
-- `internal/api/auth_handler.go`: pairing code and device management handlers
-- `internal/api/clipboard_handler.go`: clipboard, favorites, and category HTTP handlers
-- `internal/api/media_handler.go`: image, file, link, and download HTTP handlers
-- `internal/api/cleanup_handler.go`: manual cleanup, storage status, and cleanup settings handlers
-- `internal/api/settings_handler.go`: runtime settings and limits handlers
-- `internal/api/webdav_handler.go`: WebDAV settings, test, sync, and status handlers
-- `internal/api/response.go`: shared success and error response helpers
-- `internal/api/clipboard_handler_test.go`: HTTP-level tests for auth, pairing, quick clipboard, favorites, categories, and cleanup flows
-- `web/embedded.go`: `go:embed` entrypoint for the built frontend bundle
-- `web/dist/index.html`: embedded Web UI entry document
-- `web/dist/app.css`: embedded Web UI styles
-- `web/dist/app.js`: embedded Web UI behavior
-- `configs/config.example.yaml`: example config for local startup
-- `docs/api.md`: HTTP API reference for the current phase
-- `docs/config.md`: active config keys used by the implementation
-- `docs/roadmap.md`: staged build plan for later phases
-- `docs/deployment.md`: English deployment guide for binary, Docker, and service installs
-- `docs/deployment.zh-CN.md`: 中文部署说明，方便直接给中文用户查看
-- `docs/webdav-sync.md`: WebDAV sync preview scope, layout, and workflow
-- `CHANGELOG.md`: phase-by-phase change record
+- English
+- Simplified Chinese (`zh-CN`)
 
-## Notes
+Related docs:
 
-The Go module path is normalized to:
+- [`docs/webui.md`](docs/webui.md)
+- [`docs/api.md`](docs/api.md)
+- [`docs/config.md`](docs/config.md)
+- [`docs/deployment.md`](docs/deployment.md)
+- [`docs/security.md`](docs/security.md)
+- [`docs/zh-CN/overview.md`](docs/zh-CN/overview.md)
 
-`github.com/cinmou/ClipBridgeServer`
+## Security Model
 
-All internal imports should use that exact casing so builds stay consistent
-across macOS, Windows, Linux, and OpenWrt.
+ClipBridgeServer uses a practical self-hosted security model rather than a heavy enterprise access stack.
+
+- Default bind address is `127.0.0.1`
+- Admin token can be auto-generated if missing
+- Pairing codes are short-lived and single-use
+- Device tokens are generated during pairing
+- Logs should not expose tokens or WebDAV passwords
+- Plain HTTP is acceptable for trusted LAN use
+- For remote or public access, use an HTTPS reverse proxy
+- Built-in TLS is optional for advanced users
+
+More detail:
+
+- [`docs/security.md`](docs/security.md)
+
+## WebDAV Sync
+
+WebDAV sync is an optional preview feature.
+
+- It is designed as a user-owned storage path
+- It is not dependent on any ClipBridge cloud service
+- Current workflow is manual test plus manual sync, not automatic background sync
+
+More detail:
+
+- [`docs/api.md`](docs/api.md)
+- [`docs/webdav-sync.md`](docs/webdav-sync.md)
+
+## Development
+
+Build the frontend:
+
+```bash
+cd web
+npm run build
+cd ..
+```
+
+Run tests:
+
+```bash
+go test ./...
+```
+
+Build the server:
+
+```bash
+go build ./cmd/server
+```
+
+## Roadmap
+
+Near-term priorities:
+
+- polish the `Cherwell` Web UI
+- improve documentation
+- prepare future desktop and mobile clients that use the HTTP API
+
+## License
+
+This project uses the existing repository license: `GPL-3.0-only`.
+
+See [`LICENSE`](LICENSE).
+
+## 中文说明
+
+### 这是什么
+
+ClipBridgeServer 是一个自托管的剪贴板同步服务端，支持文本、链接、图片、文件历史记录，并带有内置 Web 管理界面。
+
+### 当前能做什么
+
+- 管理剪贴板历史记录
+- 收藏重要内容
+- 通过配对码添加设备
+- 配置清理策略
+- 预览 WebDAV 手动同步能力
+- 在浏览器里使用英文或简体中文界面
+
+### 为什么服务端和客户端分离
+
+服务端负责存储、同步、设备管理和 Web UI。未来的桌面端和移动端建议保持轻量，通过 HTTP API 与服务端交互，这样服务端能力可以集中演进，客户端也更容易维护。
+
+### 内网使用建议
+
+- 默认监听 `127.0.0.1`
+- 如果你只在可信内网中使用，HTTP 就已经足够实用
+- 如果暴露到局域网，请确认网络环境可信
+
+### 外网访问建议
+
+如果需要远程或公网访问，建议放在 HTTPS 反向代理之后，例如 Caddy、Nginx、Traefik、Tailscale，或 NAS / 路由器自带的 HTTPS 网关。

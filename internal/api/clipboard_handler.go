@@ -46,6 +46,7 @@ type clipboardItemResponse struct {
 	URL         string `json:"url,omitempty"`
 	DownloadURL string `json:"download_url,omitempty"`
 	PreviewURL  string `json:"preview_url,omitempty"`
+	SizeBytes   int64  `json:"size_bytes,omitempty"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 }
@@ -444,6 +445,7 @@ func toClipboardItemResponse(item *store.ClipboardItem) clipboardItemResponse {
 		URL:         item.TextContent,
 		DownloadURL: downloadURL,
 		PreviewURL:  previewURL,
+		SizeBytes:   item.SizeBytes,
 		CreatedAt:   item.CreatedAt,
 		UpdatedAt:   item.UpdatedAt,
 	}

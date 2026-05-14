@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,6 +42,9 @@ func TestPairingCodeLifecycleAndHashStorage(t *testing.T) {
 	}
 	if deviceToken == "" {
 		t.Fatalf("device token should not be empty")
+	}
+	if !strings.HasPrefix(deviceToken, "cb_device_") {
+		t.Fatalf("device token = %q, want cb_device_ prefix", deviceToken)
 	}
 
 	authenticatedDevice, err := dbStore.AuthenticateDeviceToken(ctx, deviceToken)
